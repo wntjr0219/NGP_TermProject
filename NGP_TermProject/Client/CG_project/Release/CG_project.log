@@ -1,0 +1,27 @@
+﻿  main.cpp
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\GameUtilities.h(25,25): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(8,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(22,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(156,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(157,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(158,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(162,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(163,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(164,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(203,22): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(211,22): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(218,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(226,23): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(234,23): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(241,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(252,50): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(275,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(279,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(283,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(287,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+  코드를 생성하고 있습니다.
+  0 of 308 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  코드를 생성했습니다.
+  CG_project.vcxproj -> C:\Users\dhtpg\source\sehyeon\CG_project\Release\CG_project.exe

@@ -1,0 +1,60 @@
+﻿  Init.cpp
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\Init.cpp(36,73): warning C4244: '=': 'double'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+  main.cpp
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\obj_function.h(25,25): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(8,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(22,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(156,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(157,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(158,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(162,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(163,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(164,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(203,22): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(211,22): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(218,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(220,72): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(220,72): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(226,23): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(234,23): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(241,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(243,72): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(243,72): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(252,50): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(275,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(279,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(283,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(287,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(316,87): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(316,87): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(318,78): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(318,78): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(324,96): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(324,96): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(326,77): warning C4311: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 포인터가 잘립니다.
+C:\Users\dhtpg\source\sehyeon\CG_project\CG_project\main.cpp(326,77): warning C4302: '형식 캐스트': 'LPVOID'에서 'DWORD'(으)로 잘립니다.
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewCompileShader
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewCreateShader
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewBindBuffer
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewCreateProgram
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewGetProgramiv
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewBufferData
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewAttachShader
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewDeleteProgram
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewShaderSource
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewGetProgramInfoLog
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewGenBuffers
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewDeleteShader
+Init.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewLinkProgram
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewEnableVertexAttribArray
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewBindVertexArray
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewUseProgram
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewVertexAttribPointer
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewGetUniformLocation
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewGenVertexArrays
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewDisableVertexAttribArray
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewUniformMatrix4fv
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp_glewExperimental
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp___glewUniform3f
+main.obj : error LNK2001: 확인할 수 없는 외부 기호 __imp_glewInit
+C:\Users\dhtpg\source\sehyeon\CG_project\x64\Release\CG_project.exe : fatal error LNK1120: 24개의 확인할 수 없는 외부 참조입니다.
