@@ -150,6 +150,7 @@
     <ClInclude Include="Init.h" />
     <ClInclude Include="GameUtilities.h" />
     <ClInclude Include="OpenGL.h" />
+    <ClInclude Include="protocol.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.glsl" />

@@ -20,27 +20,10 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	CreateSphere(eEBO, eVBO);
 
 	srand(time(NULL));
-	for (int i = 0; i < 5; i++) {
-		cube_pos_x[i] = (float)(rand() % 7);	
-		cube_pos_z[i] = -(float)(rand() % 100 + 29);	
-		cube_pos_y[i] = (float)(rand() % 2);
-	}
-	for (int i = 0; i < 5; i++) {
-		normal_cube_pos_x[i] = (float)(rand() % 7);	
-		normal_cube_pos_z[i] = -(float)(rand() % 100 + 40);	
-		normal_cube_pos_y[i] = (float)(rand() % 2); 
-	}
-	for (int i = 0; i < 5; i++) {
-		hard_cube_pos_x[i] = (float)(rand() % 7);	
-		hard_cube_pos_z[i] = -(float)(rand() % 100 + 40);	
-		hard_cube_pos_y[i] = (float)(rand() % 2);
-	}
-	for (int i = 0; i < 3; i++) {
-		hard_cube2_pos_x[i] = 3.0;
-		hard_cube2_pos_z[i] = -(float)(rand() % 200 + 40);	
-		hard_cube2_pos_y[i] = (float)(rand() % 4);
-	}
 
+	// init 부분 함수화 
+	initCubePos(cubePos, normalCubePos, hardCubePos, hardCube2Pos);
+	
 	InitProgram(s_program);
 
 	playingBgm();
@@ -99,12 +82,12 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	draw_board();
 	draw_sphere();
 	for (i = 0; i < 5; i++) {
-		draw_cube();
-		draw_normal_cube();
-		draw_hard_cube();
+		draw_cube(cubePos[i]);
+		draw_normal_cube(normalCubePos[i]);
+		draw_hard_cube(hardCubePos[i]);
 	}
 	for (i = 0; i < 3; i++) {
-		draw_hard_cube2();
+		draw_hard_cube2(hardCube2Pos[i]);
 	}
 
 	glViewport(800, 600, 200, 200);
@@ -120,12 +103,12 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	draw_board();
 	draw_sphere();
 	for (i = 0; i < 5; i++) {
-		draw_cube();
-		draw_normal_cube();
-		draw_hard_cube();
+		draw_cube(cubePos[i]);
+		draw_normal_cube(normalCubePos[i]);
+		draw_hard_cube(hardCubePos[i]);
 	}
 	for (i = 0; i < 3; i++) {
-		draw_hard_cube2();
+		draw_hard_cube2(hardCube2Pos[i]);
 	}
 
 	glutSwapBuffers(); //--- 화면에 출력하기
@@ -195,6 +178,29 @@ GLvoid Special(int key, int x, int y)
 		if (!(sphere_pos_x <= -3.0)) {
 			sphere_pos_x -= 1.0;
 		}
+	}
+}
+void initCubePos(POSXYZ* cubePos, POSXYZ* normalCubePos, POSXYZ* hardCubePos, POSXYZ* hardCube2Pos)
+{
+	for (int i = 0; i < 5; i++) {
+		cubePos[i].posX = (float)(rand() % 7);
+		cubePos[i].posY = (float)(rand() % 2);
+		cubePos[i].posZ = -(float)(rand() % 100 + 29);
+	}
+	for (int i = 0; i < 5; i++) {
+		normalCubePos[i].posX = (float)(rand() % 7);
+		normalCubePos[i].posY = (float)(rand() % 2);
+		normalCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	}
+	for (int i = 0; i < 5; i++) {
+		hardCubePos[i].posX = (float)(rand() % 7);
+		hardCubePos[i].posY = (float)(rand() % 2);
+		hardCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	}
+	for (int i = 0; i < 3; i++) {
+		hardCube2Pos[i].posX = 3.0;
+		hardCube2Pos[i].posY = (float)(rand() % 4);
+		hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
 	}
 }
 void sphere_jump_timer(int value)
@@ -510,8 +516,9 @@ GLvoid draw_sphere()
 	glDisableVertexAttribArray(1);
 }
 GLuint VBO, EBO;
-void draw_cube()
+void draw_cube(POSXYZ cubePos)
 {
+	//생성
 	GLfloat vertex[] = {
 		-0.5f, 1.0f, -0.5f,		-1.0f, 1.0f, -1.0f,  //0번점
 		-0.5f, 1.0f, 0.5f,		-1.0f ,1.0f, 1.0f,  //1번점
@@ -549,6 +556,8 @@ void draw_cube()
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
+
+
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
 	glm::mat4 Rx = glm::mat4(1.0);
@@ -564,9 +573,10 @@ void draw_cube()
 	Ry = rotate(Ry, glm::radians(00.0f), glm::vec3(0.0, 1.0, 0.0));
 	Rz = rotate(Rz, glm::radians(0.0f), glm::vec3(0.0, 0.0, 1.0));
 	Sm = glm::scale(Sm, glm::vec3(x_scale, y_scale, z_scale));
+
 	Txx = glm::translate(Txx, glm::vec3(-3.0, 0.0, 0.0));
-	Tx = glm::translate(Tx, glm::vec3(cube_pos_x[i], 0.0, cube_pos_z[i]));
-	Ty = glm::translate(Ty, glm::vec3(0.0, cube_pos_y[i], 0.0));
+	Tx = glm::translate(Tx, glm::vec3(cubePos.posX, 0.0, cubePos.posZ));
+	Ty = glm::translate(Ty, glm::vec3(0.0, cubePos.posY, 0.0));
 
 	model = Rx * Ry * Rz * Txx * Tx * Ty;
 	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));		// 모델변환
@@ -581,7 +591,7 @@ void draw_cube()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-void draw_normal_cube()
+void draw_normal_cube(POSXYZ cubePos)
 {
 	GLfloat vertex[] = {
 		-0.5f, 1.0f, -0.5f,		-1.0f, 1.0f, -1.0f,  //0번점
@@ -636,8 +646,8 @@ void draw_normal_cube()
 	Rz = rotate(Rz, glm::radians(0.0f), glm::vec3(0.0, 0.0, 1.0));
 	Sm = glm::scale(Sm, glm::vec3(x_scale, y_scale, z_scale));
 	Txx = glm::translate(Txx, glm::vec3(-3.0, 0.0, 0.0));
-	Tx = glm::translate(Tx, glm::vec3(normal_cube_pos_x[i], 0.0, normal_cube_pos_z[i]));
-	Ty = glm::translate(Ty, glm::vec3(0.0, normal_cube_pos_y[i], 0.0));
+	Tx = glm::translate(Tx, glm::vec3(cubePos.posX, 0.0, cubePos.posZ));
+	Ty = glm::translate(Ty, glm::vec3(0.0, cubePos.posY, 0.0));
 
 	model = Rx * Ry * Rz * Txx * Tx * Ty;
 	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));		// 모델변환
@@ -652,7 +662,7 @@ void draw_normal_cube()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-void draw_hard_cube()
+void draw_hard_cube(POSXYZ cubePos)
 {
 	GLfloat vertex[] = {
 		-1.0f, 2.0f, -0.5f,		-1.0f, 1.0f, -1.0f,  //0번점
@@ -707,8 +717,8 @@ void draw_hard_cube()
 	Rz = rotate(Rz, glm::radians(0.0f), glm::vec3(0.0, 0.0, 1.0));
 	Sm = glm::scale(Sm, glm::vec3(x_scale, y_scale, z_scale));
 	Txx = glm::translate(Txx, glm::vec3(-3.0, 0.0, 0.0));
-	Tx = glm::translate(Tx, glm::vec3(hard_cube_pos_x[i], 0.0, hard_cube_pos_z[i]));
-	Ty = glm::translate(Ty, glm::vec3(0.0, hard_cube_pos_y[i], 0.0));
+	Tx = glm::translate(Tx, glm::vec3(cubePos.posX, 0.0, cubePos.posZ));
+	Ty = glm::translate(Ty, glm::vec3(0.0, cubePos.posY, 0.0));
 
 	model = Rx * Ry * Rz * Txx * Tx * Ty;
 	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));		// 모델변환
@@ -723,7 +733,7 @@ void draw_hard_cube()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-void draw_hard_cube2()
+void draw_hard_cube2(POSXYZ cubePos)
 {
 	GLfloat vertex[] = {
 		-4.0f, 1.0f, -0.5f,		-1.0f, 1.0f, -1.0f,  //0번점
@@ -778,8 +788,8 @@ void draw_hard_cube2()
 	Rz = rotate(Rz, glm::radians(0.0f), glm::vec3(0.0, 0.0, 1.0));
 	Sm = glm::scale(Sm, glm::vec3(x_scale, y_scale, z_scale));
 	Txx = glm::translate(Txx, glm::vec3(-3.0, 0.0, 0.0));
-	Tx = glm::translate(Tx, glm::vec3(hard_cube2_pos_x[i], 0.0, hard_cube2_pos_z[i]));
-	Ty = glm::translate(Ty, glm::vec3(0.0, hard_cube2_pos_y[i], 0.0));
+	Tx = glm::translate(Tx, glm::vec3(cubePos.posX, 0.0, cubePos.posZ));
+	Ty = glm::translate(Ty, glm::vec3(0.0, cubePos.posY, 0.0));
 
 	model = Rx * Ry * Rz * Txx * Tx * Ty;
 	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));		// 모델변환
