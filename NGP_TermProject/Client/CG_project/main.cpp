@@ -4,6 +4,7 @@
 #define window_w 1000
 #define window_h 800
 
+
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
 	//--- 윈도우 생성하기
@@ -45,7 +46,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glUseProgram(s_program);
 	glEnable(GL_DEPTH_TEST);
 
-	glViewport(0, 0, 1000, 800);
+	//뷰포트 사용x
 	glm::mat4 projection = glm::mat4(1.0f);
 	glm::mat4 pt = glm::mat4(1.0f);
 	glm::mat4 pR = glm::mat4(1.0f);
@@ -90,28 +91,9 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 		draw_hard_cube2(hardCube2Pos[i]);
 	}
 
-	glViewport(800, 600, 200, 200);
-	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
-	pt = glm::mat4(1.0f);
-	pR = glm::mat4(1.0f);
-	pt = glm::translate(pt, glm::vec3(0.0, -9.0, -30.0));
-	pR = glm::rotate(pR, glm::radians(90.0f), glm::vec3(1.0, 0.0, 0.0));
-	projection = projection * pt * pR;
-	projectionLocation = glGetUniformLocation(s_program, "projectionTransform");
-	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, &projection[0][0]);
-	draw_land();
-	draw_board();
-	draw_sphere();
-	for (i = 0; i < 5; i++) {
-		draw_cube(cubePos[i]);
-		draw_normal_cube(normalCubePos[i]);
-		draw_hard_cube(hardCubePos[i]);
-	}
-	for (i = 0; i < 3; i++) {
-		draw_hard_cube2(hardCube2Pos[i]);
-	}
-
 	glutSwapBuffers(); //--- 화면에 출력하기
+
+	cleanUp(); // 렌더링 후 사용자원 정리
 }
 GLvoid Reshape(int w, int h) //--- 콜백 함수: 다시 그리기 콜백 함수
 {
@@ -252,28 +234,28 @@ void sphere_hide_timer(int value)
 void cube_move_timer(int value)
 {
 	for (int i = 0; i < 5; i++) {
-		cube_pos_z[i] += 0.5;
-		if (meter > 200) { normal_cube_pos_z[i] += 1.0; }
-		if (meter > 600) { hard_cube_pos_z[i] += 1.0; }
-		if (meter > 1000) { hard_cube2_pos_z[i] += 1.15; }
-		if (cube_pos_z[i] >= 6.0) {
-			cube_pos_z[i] = -50.0;
-			cube_pos_x[i] = (float)(rand() % 7);
-			cube_pos_y[i] = (float)(rand() % 2);
+		cubePos[i].posZ += 0.5;
+		if (meter > 200) { normalCubePos[i].posZ += 1.0; }
+		if (meter > 600) { hardCubePos[i].posZ += 1.0; }
+		if (meter > 1000) { hardCube2Pos[i].posZ += 1.15; }
+		if (cubePos[i].posZ >= 6.0) {
+			cubePos[i].posZ = -50.0;
+			cubePos[i].posX = (float)(rand() % 7);
+			cubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 200 && normal_cube_pos_z[i] >= 6.0) {
-			normal_cube_pos_z[i] = -50.0;
-			normal_cube_pos_x[i] = (float)(rand() % 7);
-			normal_cube_pos_y[i] = (float)(rand() % 2);
+		if (meter > 200 && normalCubePos[i].posZ >= 6.0) {
+			normalCubePos[i].posZ = -50.0;
+			normalCubePos[i].posX = (float)(rand() % 7);
+			normalCubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 600 && hard_cube_pos_z[i] >= 6.0) {
-			hard_cube_pos_z[i] = -50.0;
-			hard_cube_pos_x[i] = (float)(rand() % 7);
-			hard_cube_pos_y[i] = (float)(rand() % 2);
+		if (meter > 600 && hardCubePos[i].posZ >= 6.0) {
+			hardCubePos[i].posZ = -50.0;
+			hardCubePos[i].posX = (float)(rand() % 7);
+			hardCubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 100 && hard_cube2_pos_z[i] >= 6.0) {
-			hard_cube2_pos_z[i] = -(float)(rand() % 200 + 40);
-			hard_cube2_pos_y[i] = (float)(rand() % 3);
+		if (meter > 1000 && hardCube2Pos[i].posZ >= 6.0) {
+			hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
+			hardCube2Pos[i].posY = (float)(rand() % 3);
 		}
 
 		collide = handle_collide(i);
@@ -433,16 +415,14 @@ void draw_universe()
 
 
 	//--- 텍스처 그릴 부분
-	GLuint texture;
-	BITMAPINFO* bmp;
-
+	
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture); //--- 텍스처 바인딩
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); //--- 현재 바인딩된 텍스처의 파라미터 설정하기
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	unsigned char* data = LoadDIBitmap("sky.bmp", &bmp); //--- 텍스처로 사용할 비트맵 이미지 로드하기
+	data = LoadDIBitmap("sky.bmp", &bmp); //--- 텍스처로 사용할 비트맵 이미지 로드하기
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, 654, 386, 0, GL_RGB, GL_UNSIGNED_BYTE, data); //---텍스처 이미지 정의
 
 	int objColorLocation = glGetUniformLocation(s_program, "objectColor");
@@ -450,6 +430,7 @@ void draw_universe()
 	glBindVertexArray(VAO);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
 }
 GLvoid draw_board() {
 	GLfloat vertex[] = {
@@ -490,6 +471,7 @@ GLvoid draw_board() {
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
+	
 }
 GLvoid draw_sphere()
 {
@@ -515,10 +497,8 @@ GLvoid draw_sphere()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-GLuint VBO, EBO;
 void draw_cube(POSXYZ cubePos)
 {
-	//생성
 	GLfloat vertex[] = {
 		-0.5f, 1.0f, -0.5f,		-1.0f, 1.0f, -1.0f,  //0번점
 		-0.5f, 1.0f, 0.5f,		-1.0f ,1.0f, 1.0f,  //1번점
@@ -530,9 +510,11 @@ void draw_cube(POSXYZ cubePos)
 		0.5f, 0.0f, 0.5f,		1.0f, -1.0f,  1.0f,  //6번점
 		0.5f, 0.0f, -0.5f,		1.0f, -1.0f, -1.0f,  //7번점
 	};
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &cubeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
+
+	
 	GLint gIndices[]
 	{
 		0,1,2,
@@ -553,10 +535,11 @@ void draw_cube(POSXYZ cubePos)
 		0,7,4, //뒷면
 		0,3,7
 	};
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glGenBuffers(1, &cubeEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cubeEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 
+	
 
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -604,8 +587,8 @@ void draw_normal_cube(POSXYZ cubePos)
 		0.5f, 0.0f, 0.5f,		1.0f, -1.0f,  1.0f,  //6번점
 		0.5f, 0.0f, -0.5f,		1.0f, -1.0f, -1.0f,  //7번점
 	};
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &nCubeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, nCubeVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 	GLint gIndices[]
 	{
@@ -627,8 +610,8 @@ void draw_normal_cube(POSXYZ cubePos)
 		0,7,4, //뒷면
 		0,3,7
 	};
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glGenBuffers(1, &nCubeEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, nCubeEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -675,8 +658,8 @@ void draw_hard_cube(POSXYZ cubePos)
 		1.0f, 0.0f, 0.5f,		1.0f, -1.0f,  1.0f,  //6번점
 		1.0f, 0.0f, -0.5f,		1.0f, -1.0f, -1.0f,  //7번점
 	};
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &hCubeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, hCubeVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 	GLint gIndices[]
 	{
@@ -698,8 +681,8 @@ void draw_hard_cube(POSXYZ cubePos)
 		0,7,4, //뒷면
 		0,3,7
 	};
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glGenBuffers(1, &hCubeEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, hCubeEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -746,8 +729,8 @@ void draw_hard_cube2(POSXYZ cubePos)
 		4.0f, 0.0f, 0.5f,		1.0f, -1.0f,  1.0f,  //6번점
 		4.0f, 0.0f, -0.5f,		1.0f, -1.0f, -1.0f,  //7번점
 	};
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &h2CubeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, h2CubeVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 	GLint gIndices[]
 	{
@@ -769,8 +752,8 @@ void draw_hard_cube2(POSXYZ cubePos)
 		0,7,4, //뒷면
 		0,3,7
 	};
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glGenBuffers(1, &h2CubeEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, h2CubeEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -812,16 +795,16 @@ void draw_land()
 		 30.0f,  -0.05f, -100.0f,		0.0f,1.0f,1.0f,  //2번점
 		 30.0f,  -0.05f,  30.0f,		0.0f,0.0f,1.0f   //3번점
 	};
-	glGenBuffers(1, &xzboardVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, xzboardVBO);
+	glGenBuffers(1, &landVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, landVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 	GLint gIndices[]
 	{
 		0,2,1,
 		0,3,2
 	};
-	glGenBuffers(1, &xzboardEBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, xzboardEBO);
+	glGenBuffers(1, &landEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, landEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -841,12 +824,12 @@ void draw_land()
 
 bool handle_collide(int i)
 {
-	if (cube_pos_x[i] - 3 + 0.5 < sphere_pos_x - 0.49) return false;
-	if (cube_pos_x[i] - 3 - 0.5 > sphere_pos_x + 0.49) return false;
-	if (cube_pos_y[i] + 1.0 < sphere_pos_y - 0.49) return false;
-	if (cube_pos_y[i] > sphere_pos_y + 0.49) return false;
-	if (cube_pos_z[i] + 0.5 < sphere_pos_z - 0.49) return false;
-	if (cube_pos_z[i] - 0.5 > sphere_pos_z + 0.49) return false;
+	if (cubePos[i].posX - 3 + 0.5 < sphere_pos_x - 0.49) return false;
+	if (cubePos[i].posX - 3 - 0.5 > sphere_pos_x + 0.49) return false;
+	if (cubePos[i].posY + 1.0 < sphere_pos_y - 0.49) return false;
+	if (cubePos[i].posY > sphere_pos_y + 0.49) return false;
+	if (cubePos[i].posZ + 0.5 < sphere_pos_z - 0.49) return false;
+	if (cubePos[i].posZ - 0.5 > sphere_pos_z + 0.49) return false;
 
 	return true;
 }
@@ -882,4 +865,20 @@ bool hard2_handle_collide(int i)
 	if (hard_cube2_pos_z[i] - 0.5 > sphere_pos_z + 0.49) return false;
 
 	return true;
+}
+
+void cleanUp()
+{
+	glDeleteBuffers(1, &cubeVBO);
+	glDeleteBuffers(1, &cubeEBO);
+	glDeleteBuffers(1, &nCubeVBO);
+	glDeleteBuffers(1, &nCubeEBO);
+	glDeleteBuffers(1, &hCubeVBO);
+	glDeleteBuffers(1, &hCubeEBO);
+	glDeleteBuffers(1, &h2CubeVBO);
+	glDeleteBuffers(1, &h2CubeEBO);
+	glDeleteBuffers(1, &xzboardEBO);
+	glDeleteBuffers(1, &xzboardVBO);
+	glDeleteTextures(1, &texture);
+	free(data);
 }

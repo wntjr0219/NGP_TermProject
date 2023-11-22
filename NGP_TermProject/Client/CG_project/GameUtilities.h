@@ -14,6 +14,10 @@ POSXYZ normalCubePos[5];
 POSXYZ hardCubePos[5];
 POSXYZ hardCube2Pos[3];
 
+GLuint texture;
+BITMAPINFO* bmp;
+unsigned char* data;
+
 int dwID0;
 int dwID;
 float sphere_hp_color = 0.0;
@@ -69,8 +73,8 @@ bool normal_handle_collide(int i);
 bool hard_handle_collide(int i);
 bool hard2_handle_collide(int i);
 GLuint eVBO, eEBO;
-GLuint xzboardVBO, xzboardEBO;
-GLuint cubeVBO, cubeEBO;
+GLuint xzboardVBO, xzboardEBO, landVBO, landEBO;
+GLuint cubeVBO, cubeEBO, nCubeVBO, nCubeEBO, hCubeVBO, hCubeEBO, h2CubeVBO, h2CubeEBO;
 GLuint s_program;
 GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
@@ -78,3 +82,4 @@ GLvoid Keyboard(unsigned char key, int x, int y);
 GLvoid Special(int key, int x, int y);
 
 void initCubePos(POSXYZ* cubePos, POSXYZ* normalCubePos, POSXYZ* hardCubePos, POSXYZ* hardCube2Pos);
+void cleanUp();
