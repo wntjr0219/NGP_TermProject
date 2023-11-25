@@ -1,19 +1,36 @@
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
 #include <thread>
 #include "protocol.h"
+#include "Common.h"
 //------------------------Common.h에 있는것들
 void err_quit(const char* s) { }
 #define SERVERPORT 4500
 //-------------------------함수선언
+void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo);
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo);
+void initPlayer();
+void initObstacle();
+void initGamePlayer();
 bool isDead();
 void OverGame();
 void RecvProcess(SOCKET& sock);
-void setRankedInfo(int meter, char* Inintial);
+void setRankedInfo(int meter, char* Inintial, SOCKET sock);
 void moveCharacter(int keytype);
 void reStart();
 //------------------------전역변수(공유자원포함)
 int numOfClient = 0;
-
+const char* filename;
+SCRankingPacket rankingPacket;
+POSXYZ playerPos;
+POSXYZ cubePos[5];
+POSXYZ normalCubePos[5];
+POSXYZ hardCubePos[5];
+POSXYZ hardCube2Pos[3];
+RankedInfo rankInfo;
+float player_hp;
 
 //------------------------Thread 정의
 
@@ -26,8 +43,9 @@ DWORD WINAPI ClientThread(LPVOID arg) {
 
 		RecvProcess(sock);
 
-		bool deadflag = isDead();
-		if (deadflag == true) { OverGame(); }
+		/*bool deadflag = isDead();
+		if (deadflag == true) { OverGame(); }*/
+		if (isDead()) { OverGame(); }
 
 	}
 
@@ -94,16 +112,30 @@ int main(void) {
 }
 
 
-void moveCharacter(int keytype) {
+void moveCharacter(int keytype) 
+{
 	//Collsion Detection
 }
 
 
 
-void setRankedInfo(int meter, char* Initial) {
+void setRankedInfo(int meter, char* Initial, SOCKET sock)
+{
 	//place aggregation
+	filename = "rankingFile.bin";
+	RankedInfo* rankInfo = new RankedInfo[RANKERS];
+	readRankInfoFile(filename, rankInfo);
+
+	rankingPacket.type = SCRANKINGPACKET;
+	for (int i = 0; i < RANKERS; ++i) {
+		rankingPacket.rankings[i] = rankInfo[i];
+	}
+	
+	send(sock, (char*)&rankingPacket, sizeof(rankingPacket), MSG_WAITALL);
+	delete[] rankInfo;
 }
-void reStart() {
+void reStart() 
+{
 	//game restart
 }
 
@@ -117,7 +149,7 @@ void RecvProcess(SOCKET& sock) {
 	case CSINITIALPACKET:
 		CSInitialPacket Initial;
 		recv(sock, (char*)&Initial, sizeof(CSInitialPacket), MSG_WAITALL);
-		setRankedInfo(Initial.meter, Initial.nameInitial);
+		setRankedInfo(Initial.meter, Initial.nameInitial, sock);
 		break;
 	case CSKEYPACKET:
 		CSKeyPacket Move;
@@ -137,8 +169,87 @@ void RecvProcess(SOCKET& sock) {
 
 }
 
-bool isDead() {
+void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo)
+{
+	std::ofstream file(filename, std::ios::binary | std::ios::app);
+	if (!file.is_open()) {
+		std::cerr << "file write open error" << std::endl;
+		return;
+	}
+	file.write(reinterpret_cast<const char*>(&rankInfo), sizeof(RankedInfo));
+	file.close();
+}
 
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
+{
+	std::ifstream file(filename, std::ios::binary);
+	if (!file.is_open()) {
+		std::cerr << "file read open error" << std::endl;
+		return;
+	}
+
+	std::vector<RankedInfo> allRankings;
+	while (file.peek() != EOF) {
+		RankedInfo temp;
+		file.read(reinterpret_cast<char*>(&temp), sizeof(RankedInfo));
+		allRankings.push_back(temp);
+	}
+
+	std::sort(allRankings.begin(), allRankings.end(), [](const RankedInfo& a, const RankedInfo& b) {
+		return a.meter > b.meter;
+		});
+
+	int numCopyElements = min(RANKERS, static_cast<int>(allRankings.size()));
+
+	for (int i = 0; i < numCopyElements; ++i) {
+		rankInfo[i] = allRankings[i];
+	}
+
+	file.close();
+}
+
+void initPlayer()
+{
+	// 플레이어 위치 상수값 초기화 (맵의 정중앙 위치)
+	playerPos.posX = 0.0;
+	playerPos.posY = 0.4;
+	playerPos.posZ = 3.0;
+}
+
+void initObstacle()
+{
+	// 장애물 위치 랜덤값범위로 초기화
+	for (int i = 0; i < 5; i++) {
+		cubePos[i].posX = (float)(rand() % 7);
+		cubePos[i].posY = (float)(rand() % 2);
+		cubePos[i].posZ = -(float)(rand() % 100 + 29);
+	}
+	for (int i = 0; i < 5; i++) {
+		normalCubePos[i].posX = (float)(rand() % 7);
+		normalCubePos[i].posY = (float)(rand() % 2);
+		normalCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	}
+	for (int i = 0; i < 5; i++) {
+		hardCubePos[i].posX = (float)(rand() % 7);
+		hardCubePos[i].posY = (float)(rand() % 2);
+		hardCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	}
+	for (int i = 0; i < 3; i++) {
+		hardCube2Pos[i].posX = 3.0;
+		hardCube2Pos[i].posY = (float)(rand() % 4);
+		hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
+	}
+}
+
+void initGamePlayer()
+{
+	//게임 초기화에 필요한 함수 추가
+	initPlayer();
+	initObstacle();
+}
+
+bool isDead() {
+	return player_hp > 2.0;
 }
 
 void OverGame() {

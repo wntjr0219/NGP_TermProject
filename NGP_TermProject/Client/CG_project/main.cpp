@@ -1,8 +1,8 @@
 #include "OpenGL.h"
 #include "Init.h"
 #include "GameUtilities.h"
-#define window_w 1000
-#define window_h 800
+#define window_w 500
+#define window_h 400
 
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
