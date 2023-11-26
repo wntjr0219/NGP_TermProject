@@ -13,3 +13,4 @@ void CreateCone(GLuint& EBO, GLuint& VBO);
 void CreateBoard(GLuint& EBO, GLuint& VBO);
 void CreatePolygon(GLuint& VBO, GLuint& EBO);
 void CreateSphere(GLuint& EBO, GLuint& VBO);
+void CreateCube(GLuint& EBO, GLuint& VBO);
