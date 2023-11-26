@@ -26,7 +26,6 @@ enum packet_type {
     SCWINNERPACKET,
     SCOBSTACLEPACKET,
     SCRANKINGPACKET,
-    SCRANKEDINFO
 };
 
 

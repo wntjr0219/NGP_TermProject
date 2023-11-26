@@ -45,6 +45,8 @@ float cube_pos_x[100]; float cube_pos_y[100]; float cube_pos_z[100];
 float normal_cube_pos_x[100]; float normal_cube_pos_y[100]; float normal_cube_pos_z[100];
 float hard_cube_pos_x[100]; float hard_cube_pos_y[100]; float hard_cube_pos_z[100];
 float hard_cube2_pos_x[100]; float hard_cube2_pos_y[100]; float hard_cube2_pos_z[100];
+POSXYZ EnemysPos, PlayerPos;
+POSXYZ Obstacles;
 
 void game_over_timer(int value);
 void cube_move_timer(int value);
