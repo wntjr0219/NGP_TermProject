@@ -1,12 +1,126 @@
 #include "OpenGL.h"
 #include "Init.h"
 #include "GameUtilities.h"
+#include <math.h>
+
+#include <WS2tcpip.h>
+#pragma comment(lib, "WS32.lib");
+
 #define window_w 500
 #define window_h 400
 
+const char* SERVERIP = "127.0.0.1";
+int SERVERPORT = 4000;
+
+SOCKET wSock;
+
+void ConnectServer() {
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) exit(1);
+
+	SOCKET Wsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (Wsock == INVALID_SOCKET) {
+		printf("socket()"); exit(1);
+	}
+
+	SOCKADDR_IN seraddr;
+
+	memset(&seraddr, 0, sizeof(seraddr));
+	seraddr.sin_family = AF_INET;
+	inet_pton(AF_INET, SERVERIP, &seraddr.sin_addr);
+
+	seraddr.sin_port = htons(SERVERPORT);
+
+	if (connect(Wsock, (sockaddr*)&seraddr, sizeof(seraddr)) == SOCKET_ERROR) {
+		printf("connect()"); exit(1);
+	}
+
+}
+
+void DisConnectServer() {
+
+	closesocket(wSock);
+
+	WSACleanup();
+}
+
+void moveCharacter(char* packet) {
+	if (packet[0] == SCCHARACTERPACKET) {
+		SCCharacterPacket player;
+		memcpy(&player, packet, sizeof(SCCharacterPacket));
+		PlayerPos = player.characterXYZ;
+		if (player.isCollide) {
+			sphere_hp_color += 0.2;
+		}
+	}
+	else if (packet[0] == SCENEMYPACKET) {
+		SCEnemyPacket enemy;
+		memcpy(&enemy, packet, sizeof(SCEnemyPacket));
+		EnemysPos = enemy.EnemyXYZ;
+	}
+}
+
+void moveObstacles(char* packet) {
+	SCObstaclePacket Obs;
+	memcpy(&Obs, packet, sizeof(SCObstaclePacket));
+
+
+	Obstacles.posXYZ = Obs.obstacleXYZ;
+}
+
+void showRankings(char* packet) {
+	SCRankingPacket rankings;
+	memcpy(&rankings, packet, sizeof(SCRankingPacket));
+
+	for (int i = 0; i < RANKERS; ++i) {
+		printf("%d  - %s\n", i, rankings.rankings[i]);
+	}
+}
+void ReceiveProcess() {
+	BYTE type;
+	int ret = recv(wSock, (char*)type, sizeof(BYTE), MSG_PEEK);
+	if (ret == SOCKET_ERROR) { exit(-1); }
+
+	switch (type)
+	{
+	case SCCHARACTERPACKET:
+		SCCharacterPacket charactermove;
+		recv(wSock, (char*)&charactermove, sizeof(SCCharacterPacket), MSG_WAITALL);
+		moveCharacter((char*)&charactermove);
+		break;
+	case SCENEMYPACKET:
+		SCEnemyPacket enemymove;
+		recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
+		moveCharacter((char*)&enemymove);
+		break;
+	case SCPAUSEPACKET:
+		CSPausePacket pause;
+		recv(wSock, (char*)&pause, sizeof(CSPausePacket), MSG_WAITALL);
+		Pause();
+		break;
+	case SCOBSTACLEPACKET:
+		SCObstaclePacket obastaclesmove;
+		recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
+		moveObstacles((char*)&obastaclesmove);
+		break;
+	case SCRANKINGPACKET:
+		SCRankingPacket rankings;
+		recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
+		showRankings((char*)&rankings);
+		break;
+	default:
+		std::cout << "invalid Packet" << std::endl;
+		exit(-1);
+		break;
+	}
+}
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
+	ConnectServer();
+
+
 	//--- 윈도우 생성하기
 	glutInit(&argc, argv); // glut 초기화
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH); // 디스플레이 모드 설정
@@ -23,8 +137,8 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	srand(time(NULL));
 
 	// init 부분 함수화 
+	// init 부분 함수화 
 	initCubePos(cubePos, normalCubePos, hardCubePos, hardCube2Pos);
-	
 	InitProgram(s_program);
 
 	playingBgm();
@@ -35,6 +149,8 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutSpecialFunc(Special);
 	glutTimerFunc(50, cube_move_timer, 1);
 	glutMainLoop(); // 이벤트 처리 시작
+
+	DisConnectServer();
 
 }
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
@@ -75,6 +191,8 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glUniform3f(lightPosColorLocation, 0.0, 0.0, 5.0);
 	int viewPosColorLocation = glGetUniformLocation(s_program, "viewPos");
 	glUniform3f(lightPosColorLocation, cameraPos_x, cameraPos_y, cameraPos_z);
+
+
 
 	if (death == true) {
 		Game_Over();
@@ -135,33 +253,60 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 }
 GLvoid Special(int key, int x, int y)
 {
-	if (key == GLUT_KEY_UP) {
-		if (running == false) {
-			jumped = true;
-			running = true;
-			Jump_n_Hide_Sound();
-			glutTimerFunc(30, sphere_jump_timer, 1);
-		}
+
+	//if (key == GLUT_KEY_UP) {
+	//	if (running == false) {
+	//		jumped = true;
+	//		running = true;
+	//		Jump_n_Hide_Sound();
+	//		glutTimerFunc(30, sphere_jump_timer, 1);
+	//	}
+	//}
+	//else if (key == GLUT_KEY_DOWN) {
+	//	if (running == false) {
+	//		hide = true;
+	//		running = true;
+	//		Jump_n_Hide_Sound();
+	//		glutTimerFunc(40, sphere_hide_timer, 1);
+	//	}	
+	//}
+	//else if (key == GLUT_KEY_RIGHT) {
+	//	if (!(sphere_pos_x >= 3.0)) {
+	//		sphere_pos_x += 1.0;
+	//	}
+	//}
+	//else if (key == GLUT_KEY_LEFT) {
+	//	if (!(sphere_pos_x <= -3.0)) {
+	//		sphere_pos_x -= 1.0;
+	//	}
+	//}
+	CSKeyPacket pmove;
+	switch (key)
+	{
+	case GLUT_KEY_UP:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYUP;
+		break;
+	case GLUT_KEY_DOWN:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYDOWN;
+
+		break;
+	case GLUT_KEY_RIGHT:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYRIGHT;
+		break;
+	case GLUT_KEY_LEFT:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYLEFT;
+		break;
+	default:
+		break;
 	}
-	else if (key == GLUT_KEY_DOWN) {
-		if (running == false) {
-			hide = true;
-			running = true;
-			Jump_n_Hide_Sound();
-			glutTimerFunc(40, sphere_hide_timer, 1);
-		}	
-	}
-	else if (key == GLUT_KEY_RIGHT) {
-		if (!(sphere_pos_x >= 3.0)) {
-			sphere_pos_x += 1.0;
-		}
-	}
-	else if (key == GLUT_KEY_LEFT) {
-		if (!(sphere_pos_x <= -3.0)) {
-			sphere_pos_x -= 1.0;
-		}
-	}
+	send(wSock, (char*)&pmove, sizeof(CSKeyPacket), 0);
+
 }
+/*
 void initCubePos(POSXYZ* cubePos, POSXYZ* normalCubePos, POSXYZ* hardCubePos, POSXYZ* hardCube2Pos)
 {
 	for (int i = 0; i < 5; i++) {
@@ -184,7 +329,8 @@ void initCubePos(POSXYZ* cubePos, POSXYZ* normalCubePos, POSXYZ* hardCubePos, PO
 		hardCube2Pos[i].posY = (float)(rand() % 4);
 		hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
 	}
-}
+}*/
+/*
 void sphere_jump_timer(int value)
 {
 	if (jumped == true && sphere_pos_y < 2.6) {
@@ -208,6 +354,8 @@ void sphere_jump_timer(int value)
 		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
 	}
 }
+*/
+/*
 void sphere_hide_timer(int value)
 {
 	if (hide == true && sphere_pos_y >= -2.0) {
@@ -231,29 +379,31 @@ void sphere_hide_timer(int value)
 		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);   
 	}
 }
+*/
+/*
 void cube_move_timer(int value)
 {
 	for (int i = 0; i < 5; i++) {
 		cubePos[i].posZ += 0.5;
-		if (meter > 200) { normalCubePos[i].posZ += 1.0; }
-		if (meter > 600) { hardCubePos[i].posZ += 1.0; }
-		if (meter > 1000) { hardCube2Pos[i].posZ += 1.15; }
+		if (meter > 10) { normalCubePos[i].posZ += 1.0; }
+		if (meter > 20) { hardCubePos[i].posZ += 1.0; }
+		if (meter > 30) { hardCube2Pos[i].posZ += 1.15; }
 		if (cubePos[i].posZ >= 6.0) {
 			cubePos[i].posZ = -50.0;
 			cubePos[i].posX = (float)(rand() % 7);
 			cubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 200 && normalCubePos[i].posZ >= 6.0) {
+		if (meter > 10 && normalCubePos[i].posZ >= 6.0) {
 			normalCubePos[i].posZ = -50.0;
 			normalCubePos[i].posX = (float)(rand() % 7);
 			normalCubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 600 && hardCubePos[i].posZ >= 6.0) {
+		if (meter > 20 && hardCubePos[i].posZ >= 6.0) {
 			hardCubePos[i].posZ = -50.0;
 			hardCubePos[i].posX = (float)(rand() % 7);
 			hardCubePos[i].posY = (float)(rand() % 2);
 		}
-		if (meter > 1000 && hardCube2Pos[i].posZ >= 6.0) {
+		if (meter > 30 && hardCube2Pos[i].posZ >= 6.0) {
 			hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
 			hardCube2Pos[i].posY = (float)(rand() % 3);
 		}
@@ -287,6 +437,7 @@ void cube_move_timer(int value)
 	drawScene();
 	glutTimerFunc(50, cube_move_timer, 1);
 }
+*/
 void game_over_timer(int value)
 {
 	z_rotate += 5.0;
@@ -372,6 +523,8 @@ void Game_Over()
 	glBindVertexArray(VAO);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+
 }
 void draw_universe()
 {
@@ -821,15 +974,32 @@ void draw_land()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-
+/*
 bool handle_collide(int i)
 {
-	if (cubePos[i].posX - 3 + 0.5 < sphere_pos_x - 0.49) return false;
-	if (cubePos[i].posX - 3 - 0.5 > sphere_pos_x + 0.49) return false;
+	if (fabs(cubePos[i].posX - 3 - sphere_pos_x) > 0.5 + 0.49) return false;
+	if (fabs(cubePos[i].posZ - sphere_pos_z) > 0.99) return false;
+
+
+	//if (cubePos[i].posX - 3 + 0.5 < sphere_pos_x - 0.49) return false;
+	//if (cubePos[i].posX - 3 - 0.5 > sphere_pos_x + 0.49) return false;
+	cX , pX
+	pX - cX < 0.99 충돌
+	pX -3  -cX < 0.99 충돌
+	0.99 ==>> cubes-r + p -r
+	p-r -> 0.49
+	c -r -> 0.5
+
+	각 큐브마다 반지름
+
+	pX - cX < 각큐브의 반지름+ 플레이어의 반지름 => 충돌
+	p   -  c
+	fabs 
+
 	if (cubePos[i].posY + 1.0 < sphere_pos_y - 0.49) return false;
 	if (cubePos[i].posY > sphere_pos_y + 0.49) return false;
-	if (cubePos[i].posZ + 0.5 < sphere_pos_z - 0.49) return false;
-	if (cubePos[i].posZ - 0.5 > sphere_pos_z + 0.49) return false;
+	//if (cubePos[i].posZ + 0.5 < sphere_pos_z - 0.49) return false;
+	//if (cubePos[i].posZ - 0.5 > sphere_pos_z + 0.49) return false;
 
 	return true;
 }
@@ -866,7 +1036,7 @@ bool hard2_handle_collide(int i)
 
 	return true;
 }
-
+*/
 void cleanUp()
 {
 	glDeleteBuffers(1, &cubeVBO);
@@ -881,4 +1051,6 @@ void cleanUp()
 	glDeleteBuffers(1, &xzboardVBO);
 	glDeleteTextures(1, &texture);
 	free(data);
+	
 }
+

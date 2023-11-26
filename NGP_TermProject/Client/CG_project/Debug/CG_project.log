@@ -1,22 +1,22 @@
 ﻿  main.cpp
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(36,20): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(9,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(23,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(121,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(122,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(123,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(127,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(128,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(129,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(191,22): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(199,22): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(206,18): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(214,23): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(222,23): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(229,18): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(240,51): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(263,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(267,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(271,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(275,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-  CG_project.vcxproj -> C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(36,25): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(11,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(25,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(123,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(124,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(125,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(129,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(130,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(131,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(193,22): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(201,22): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(208,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(216,23): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(224,23): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(231,21): warning C4305: '=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(242,49): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(265,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(269,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(273,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(277,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+  CG_project.vcxproj -> C:\Users\glxmt\OneDrive\바탕 화면\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe
