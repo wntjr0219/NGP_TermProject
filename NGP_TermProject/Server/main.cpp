@@ -33,11 +33,12 @@ HANDLE playerEvent;
 // 11.22 플레이어 스레드로 이름 변경
 // 캐릭터, 장애물 좌표값, 체력, 승리여부 보내기
 DWORD WINAPI PlayerThread(LPVOID arg) {
-
+	
+	DWORD retval;
 	SOCKET sock = (SOCKET)arg;
 
 	while (1) {
-
+		retval = WaitForSingleObject(moveEvent, INFINITE);
 		RecvProcess(sock);
 
 		bool deadflag = isDead();
@@ -55,12 +56,11 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 DWORD WINAPI MoveThread(LPVOID arg) {
 
 	SOCKET obsSock = (SOCKET)arg;
-	// 장애물 위치 변경
-	cube_move_timer(1);
-	// 충돌검사
 	
-	// 장애물 위치든 뭐든 일단 변경
 	while (1) {
+		// 장애물 위치 변경
+		cube_move_timer(1);
+		// 충돌검사
 		//send();
 
 	}
@@ -102,14 +102,22 @@ int main(void) {
 	while (1) {
 
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
-	
-		HANDLE MovThread = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
-
+		
+		HANDLE hThread[2];
+		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
+		hThread[1] = CreateThread(NULL, 0, PlayerThread, 0, 0, NULL);
 
 
 
 	}
+	//스레드 종료 대기
 
+
+	//이벤트 제거
+	CloseHandle(moveEvent);
+	CloseHandle(playerEvent);
+
+	//소켓 제거
 	closesocket(clisock);
 	closesocket(sersock);
 
@@ -185,8 +193,15 @@ void RecvProcess(SOCKET& sock) {
 }
 
 bool isDead() {
-
-}
+	if (sphere_hp_color > 2.0) {
+		printf("\nGame Over\n");
+		printf("최종 기록 : %d 미터\n", meter);
+		death = true;
+		glutTimerFunc(100, game_over_timer, 1);
+		drawScene();
+		return;
+	}
+  }
 
 void OverGame() {
 
@@ -269,14 +284,7 @@ void cube_move_timer(int value)
 			hard_cube2_pos_z[i] = -(float)(rand() % 200 + 40);
 			hard_cube2_pos_y[i] = (float)(rand() % 3);
 		}
-		if (sphere_hp_color > 2.0) {
-			printf("\nGame Over\n");
-			printf("최종 기록 : %d 미터\n", meter);
-			death = true;
-			glutTimerFunc(100, game_over_timer, 1);
-			drawScene();
-			return;
-		}
+	
 	}
 	meter++;
 	glutTimerFunc(50, cube_move_timer, 1);
