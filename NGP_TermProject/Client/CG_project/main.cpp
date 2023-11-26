@@ -831,6 +831,7 @@ bool handle_collide(int i)
 	if (cubePos[i].posZ + 0.5 < sphere_pos_z - 0.49) return false;
 	if (cubePos[i].posZ - 0.5 > sphere_pos_z + 0.49) return false;
 
+
 	return true;
 }
 bool normal_handle_collide(int i)

@@ -16,17 +16,18 @@ enum packet_type {
     //Client Packet
     CSKEYPACKET,
     CSINITIALPACKET,
-    CSRESTARTPACKET,
+    CSRESUMEPACKET,
     //CSDEADPACKET
 
     //ServerPakcet
     SCCHARACTERPACKET,
     SCENEMYPACKET,
-    SCRESUMEPACKET,
+    SCPAUSEPACKET,
     SCWINNERPACKET,
     SCOBSTACLEPACKET,
     SCRANKINGPACKET,
-    SCRANKEDINFO
+    SCISDEAD,
+    SCCOLLIDE
 };
 
 
@@ -53,7 +54,7 @@ struct CSInitialPacket {
     char nameInitial[STRLEN];
 };
 
-struct CSReStartPacket {
+struct CSResumePacket {
     BYTE type;
     bool start;
 };
@@ -67,8 +68,11 @@ struct CSReStartPacket {
 //--------------------------------SCPacket------------------------------------------------------
 struct SCCharacterPacket {
     BYTE type;
-    bool isCollide;
     POSXYZ characterXYZ;
+};
+struct SCCollidePacket {
+    BYTE type;
+    float playerHpColor;
 };
 
 struct SCEnemyPacket {
@@ -76,7 +80,12 @@ struct SCEnemyPacket {
     POSXYZ EnemyXYZ;
 };
 
-struct SCResumePacket {
+struct SCDeadPacket {
+    BYTE type;
+    bool isDead;
+};
+
+struct SCPausePacket {
     BYTE type;
     BYTE seconds;
 };
