@@ -5,8 +5,10 @@
 #include <thread>
 #include "protocol.h"
 #include "Common.h"
+#include "OpenGL.h"
+#include "GameUtilities.h"
 //------------------------Common.h에 있는것들
-void err_quit(const char* s) { }
+//void err_quit(const char* s) { }
 #define SERVERPORT 4500
 //-------------------------함수선언
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo);
@@ -15,42 +17,23 @@ void initPlayer();
 void initObstacle();
 void initGamePlayer();
 bool isDead();
-void OverGame();
+void OverGame(SOCKET sock);
 void RecvProcess(SOCKET& sock);
-void setRankedInfo(int meter, char* Inintial, SOCKET sock);
+void setRankedInfo(SOCKET sock);
 void moveCharacter(int keytype);
 void reStart();
 //------------------------전역변수(공유자원포함)
 int numOfClient = 0;
+HANDLE moveEvent;
+HANDLE playerEvent;
 const char* filename;
 SCRankingPacket rankingPacket;
 POSXYZ playerPos;
-POSXYZ cubePos[5];
-POSXYZ normalCubePos[5];
-POSXYZ hardCubePos[5];
-POSXYZ hardCube2Pos[3];
 RankedInfo rankInfo;
 float player_hp;
 
+
 //------------------------Thread 정의
-
-//여기서 뭘 처리할 것인가
-DWORD WINAPI ClientThread(LPVOID arg) {
-
-	SOCKET sock = (SOCKET)arg;
-
-	while (1) {
-
-		RecvProcess(sock);
-
-		/*bool deadflag = isDead();
-		if (deadflag == true) { OverGame(); }*/
-		if (isDead()) { OverGame(); }
-
-	}
-
-	return 0;
-}
 
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
@@ -58,13 +41,55 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 
 	SOCKET obsSock = (SOCKET)arg;
 
-	// 장애물 위치든 뭐든 일단 변경
 	while (1) {
-		//send();
-
+		// 장애물 위치 변경, 충돌검사
+		glutTimerFunc(50, cube_move_timer, 1);
 	}
+
+	SetEvent(moveEvent);
 	return 0;
 }
+
+//여기서 뭘 처리할 것인가
+DWORD WINAPI PlayerThread(LPVOID arg) {
+
+	DWORD retval;
+	SOCKET sock = (SOCKET)arg;
+
+	while (1) {
+		retval = WaitForSingleObject(moveEvent, INFINITE);
+		RecvProcess(sock);
+
+		//send() 장애물에 대한 변경 : 한꺼번에 위치변경값, 충돌검사값;
+		//send하는 부분 함수화로 간략하게 수정할 예정
+		for (int i = 0; i < 18; ++i) {
+			if (!Obstacles[i].collide()) {
+				SCCollidePacket Collide;
+				sphere_hp_color += 0.2;
+				Collide.type = SCCOLLIDE;
+				Collide.playerHpColor = sphere_hp_color;
+				send(sock, (char*)&Collide, sizeof(SCCollidePacket), MSG_WAITALL);
+			}
+			SCCharacterPacket Character;
+			//charcter 구조체 값 초기화해야함
+			//Character.characterXYZ ....
+			send(sock, (char*)&Character, sizeof(SCCharacterPacket), MSG_WAITALL);
+			// 구조체 값 초기화해야함
+			SCWinnerPacket Winner;
+			send(sock, (char*)&Winner, sizeof(SCWinnerPacket), MSG_WAITALL);
+			//
+		}
+		
+
+		if (isDead()) { OverGame(sock); }
+
+		SetEvent(playerEvent);
+	}
+
+	return 0;
+}
+
+
 
 //------------------------ Main 함수
 
@@ -91,18 +116,26 @@ int main(void) {
 	SOCKADDR_IN cliaddr;
 	int addrlen = sizeof(cliaddr);
 
+	// 이벤트 생성
+	moveEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	playerEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+	// 플레이어 위치, 장애물 위치 초기화
+	initGamePlayer();
 
 
 	while (1) {
 
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 
-		HANDLE MovThread = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
-
-
-
+		HANDLE hThread[2];
+		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
+		hThread[1] = CreateThread(NULL, 0, PlayerThread, 0, 0, NULL);
 
 	}
+
+	CloseHandle(moveEvent);
+	CloseHandle(playerEvent);
 
 	closesocket(clisock);
 	closesocket(sersock);
@@ -114,12 +147,34 @@ int main(void) {
 
 void moveCharacter(int keytype) 
 {
-	//Collsion Detection
+	switch (keytype)
+	{
+	case KEYUP:
+		glutTimerFunc(30, sphere_jump_timer, 1);
+		break;
+	case KEYDOWN:
+		glutTimerFunc(30, sphere_hide_timer, 1);
+		break;
+	case KEYLEFT:
+		if (!(sphere_pos_x <= -3.0)) {
+			sphere_pos_x -= 1.0;
+		}
+		break;
+	case KEYRIGHT:
+		if (!(sphere_pos_x >= 3.0)) {
+			sphere_pos_x += 1.0;
+		}
+		break;
+	default: // 값이 없을때 안누른거냐 오류인거냐 모름
+		break;
+
+	}
+
 }
 
 
 
-void setRankedInfo(int meter, char* Initial, SOCKET sock)
+void setRankedInfo(SOCKET sock)
 {
 	//place aggregation
 	filename = "rankingFile.bin";
@@ -134,10 +189,6 @@ void setRankedInfo(int meter, char* Initial, SOCKET sock)
 	send(sock, (char*)&rankingPacket, sizeof(rankingPacket), MSG_WAITALL);
 	delete[] rankInfo;
 }
-void reStart() 
-{
-	//game restart
-}
 
 
 void RecvProcess(SOCKET& sock) {
@@ -149,16 +200,18 @@ void RecvProcess(SOCKET& sock) {
 	case CSINITIALPACKET:
 		CSInitialPacket Initial;
 		recv(sock, (char*)&Initial, sizeof(CSInitialPacket), MSG_WAITALL);
-		setRankedInfo(Initial.meter, Initial.nameInitial, sock);
+		//meter값도 받아야함.(수정필요)
+		writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial);
+		setRankedInfo(sock);
 		break;
 	case CSKEYPACKET:
 		CSKeyPacket Move;
 		recv(sock, (char*)&Move, sizeof(CSKeyPacket), MSG_WAITALL);
 		moveCharacter(Move.keytype);
 		break;
-	case CSRESTARTPACKET:
-		CSReStartPacket Restart;
-		recv(sock, (char*)&Restart, sizeof(CSReStartPacket), MSG_WAITALL);
+	case CSRESUMEPACKET:
+		CSResumePacket Resume;
+		recv(sock, (char*)&Resume, sizeof(CSResumePacket), MSG_WAITALL);
 		reStart();
 		break;
 	default:
@@ -199,7 +252,7 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
 		return a.meter > b.meter;
 		});
 
-	int numCopyElements = min(RANKERS, static_cast<int>(allRankings.size()));
+	int numCopyElements = std::min(RANKERS, static_cast<int>(allRankings.size()));
 
 	for (int i = 0; i < numCopyElements; ++i) {
 		rankInfo[i] = allRankings[i];
@@ -219,25 +272,24 @@ void initPlayer()
 void initObstacle()
 {
 	// 장애물 위치 랜덤값범위로 초기화
-	for (int i = 0; i < 5; i++) {
-		cubePos[i].posX = (float)(rand() % 7);
-		cubePos[i].posY = (float)(rand() % 2);
-		cubePos[i].posZ = -(float)(rand() % 100 + 29);
+	Obstacles.reserve(18);
+	int i;
+
+	// cube
+	for (i = 0; i < 5; ++i) {
+		Obstacles.emplace_back(0.5, 1.0, 2, 29);
 	}
-	for (int i = 0; i < 5; i++) {
-		normalCubePos[i].posX = (float)(rand() % 7);
-		normalCubePos[i].posY = (float)(rand() % 2);
-		normalCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	// normalCube
+	for (i; i < 10; ++i) {
+		Obstacles.emplace_back(0.5, 1.0, 2);
 	}
-	for (int i = 0; i < 5; i++) {
-		hardCubePos[i].posX = (float)(rand() % 7);
-		hardCubePos[i].posY = (float)(rand() % 2);
-		hardCubePos[i].posZ = -(float)(rand() % 100 + 40);
+	// hardCube
+	for (i; i < 15; ++i) {
+		Obstacles.emplace_back(1.0, 2.0, 2);
 	}
-	for (int i = 0; i < 3; i++) {
-		hardCube2Pos[i].posX = 3.0;
-		hardCube2Pos[i].posY = (float)(rand() % 4);
-		hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
+	// hard2Cube
+	for (i; i < 18; ++i) {
+		Obstacles.emplace_back(4.0, 1.0, 2);
 	}
 }
 
@@ -252,6 +304,77 @@ bool isDead() {
 	return player_hp > 2.0;
 }
 
-void OverGame() {
+void sphere_jump_timer(int value)
+{
+	if (jumped == true && sphere_pos_y < 2.6) {
+		sphere_pos_y += 0.2;
+		if (sphere_pos_y >= 2.6) {
+			jumped = false;
+			falling = true;
+		}
+		glutTimerFunc(30, sphere_jump_timer, 1);
+	}
+	else if (falling == true) {
+		sphere_pos_y -= 0.2;
+		if (sphere_pos_y <= 0.4) {
+			falling = false;
+		}
+		glutTimerFunc(30, sphere_jump_timer, 1);
+	}
+	else if (falling == false) {
+		sphere_pos_y = 0.4;
+		running = false;
+		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
+	}
+}
 
+void sphere_hide_timer(int value)
+{
+	if (hide == true && sphere_pos_y >= -2.0) {
+		sphere_pos_y -= 0.35;
+		if (sphere_pos_y <= -2.0) {
+			hide = false;
+			unhide = true;
+		}
+		glutTimerFunc(40, sphere_hide_timer, 1);
+	}
+	else if (unhide == true) {
+		sphere_pos_y += 0.35;
+		if (sphere_pos_y >= 0.4) {
+			unhide = false;
+		}
+		glutTimerFunc(40, sphere_hide_timer, 1);
+	}
+	else if (unhide == false) {
+		sphere_pos_y = 0.4;
+		running = false;
+		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);
+	}
+}
+
+void cube_move_timer(int value)
+{
+	for(int i = 0 ; i < Obstacles.size(); ++ i) {
+		Obstacles[i].move(i, meter);
+		Obstacles[i].reSetObstacle(i);
+	}
+ 
+	meter++;
+	glutTimerFunc(50, cube_move_timer, 1);
+
+}
+
+void OverGame(SOCKET sock)
+{
+	SCPausePacket pause;
+	pause.seconds = 5;
+	pause.type = SCPAUSEPACKET;
+	send(sock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+}
+
+
+
+void reStart()
+{
+	//game restart
 }
