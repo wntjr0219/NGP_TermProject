@@ -17,7 +17,7 @@
 #define SERVERPORT 4500
 //-------------------------함수선언
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
-void readRankInfoFile(const char* filename, RankedInfo*& rankInfo);
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int meter);
 void initPlayer();
 void initObstacle();
 void initGamePlayer();
@@ -140,7 +140,6 @@ int main(void) {
 	closesocket(sersock);
 
 	WSACleanup();
-
 }
 
 
@@ -178,7 +177,8 @@ void setRankedInfo(SOCKET sock)
 	//place aggregation
 	filename = "rankingFile.bin";
 	RankedInfo* rankInfo = new RankedInfo[RANKERS];
-	readRankInfoFile(filename, rankInfo);
+	int* meters = new int[RANKERS];
+	readRankInfoFile(filename, rankInfo, meters);
 
 	rankingPacket.type = SCRANKINGPACKET;
 	for (int i = 0; i < RANKERS; ++i) {
@@ -222,6 +222,7 @@ void RecvProcess(SOCKET& sock) {
 
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter)
 {
+	//meter write 추가
 	std::ofstream file(filename, std::ios::binary | std::ios::app);
 	if (!file.is_open()) {
 		std::cerr << "file write open error" << std::endl;
@@ -231,8 +232,9 @@ void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int met
 	file.close();
 }
 
-void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter)
 {
+	//meter read 처리 추가
 	std::ifstream file(filename, std::ios::binary);
 	if (!file.is_open()) {
 		std::cerr << "file read open error" << std::endl;
@@ -359,7 +361,6 @@ void cube_move_timer(int value)
 		Obstacles[i].move(i, meter);
 		Obstacles[i].reSetObstacle(i);
 	}
- 
 	meter++;
 	glutTimerFunc(50, cube_move_timer, 1);
 
