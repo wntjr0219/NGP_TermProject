@@ -1,6 +1,7 @@
 #pragma once
 #define STRLEN 20
 #define RANKERS 10
+#define OBSTACLES 18
 typedef unsigned char BYTE;
 
 #pragma pack(push, 1)
@@ -22,11 +23,11 @@ enum packet_type {
     //ServerPakcet
     SCCHARACTERPACKET,
     SCENEMYPACKET,
+    SCPAUSEPACKET,
     SCRESUMEPACKET,
     SCWINNERPACKET,
     SCOBSTACLEPACKET,
     SCRANKINGPACKET,
-    SCRANKEDINFO
 };
 
 
@@ -71,12 +72,22 @@ struct SCCharacterPacket {
     POSXYZ characterXYZ;
 };
 
+struct SCCollidePacket {
+    BYTE type;
+    float playerHpColor;
+};
+
 struct SCEnemyPacket {
     BYTE type;
     POSXYZ EnemyXYZ;
 };
 
-struct SCResumePacket {
+struct SCDeadPacket {
+    BYTE type;
+    bool isDead;
+};
+
+struct SCPausePacket {
     BYTE type;
     BYTE seconds;
 };
@@ -88,7 +99,7 @@ struct SCWinnerPacket {
 
 struct SCObstaclePacket {
     BYTE type;
-    POSXYZ obstacleXYZ;
+    POSXYZ obstacleXYZ[OBSTACLES];
 };
 
 struct SCRankingPacket {

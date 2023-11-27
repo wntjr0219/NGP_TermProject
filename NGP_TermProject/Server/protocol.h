@@ -1,6 +1,7 @@
 #pragma once
 #define STRLEN 20
 #define RANKERS 10
+#define OBSTACLES 18
 typedef unsigned char BYTE;
 
 #pragma pack(push, 1)
@@ -68,11 +69,8 @@ struct CSResumePacket {
 //--------------------------------SCPacket------------------------------------------------------
 struct SCCharacterPacket {
     BYTE type;
+    bool isCollide;
     POSXYZ characterXYZ;
-};
-struct SCCollidePacket {
-    BYTE type;
-    float playerHpColor;
 };
 
 struct SCEnemyPacket {
@@ -80,6 +78,7 @@ struct SCEnemyPacket {
     POSXYZ EnemyXYZ;
 };
 
+// winner 패킷으로 대체?
 struct SCDeadPacket {
     BYTE type;
     bool isDead;
@@ -97,7 +96,7 @@ struct SCWinnerPacket {
 
 struct SCObstaclePacket {
     BYTE type;
-    POSXYZ obstacleXYZ;
+    POSXYZ obstacleXYZ[OBSTACLES];
 };
 
 struct SCRankingPacket {

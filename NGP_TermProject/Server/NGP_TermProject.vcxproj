@@ -130,7 +130,7 @@
     <ClCompile Include="test.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Collide.h" />
+    <ClInclude Include="Obstacle.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="GameUtilities.h" />
     <ClInclude Include="OpenGL.h" />

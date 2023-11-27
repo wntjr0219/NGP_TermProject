@@ -8,8 +8,9 @@ extern POSXYZ playerPos;
 
 
 class Obstacle {
-private:
+public:
 	POSXYZ mPos;
+private:
 	float mHalfwidth;
 	float mY;
 public:

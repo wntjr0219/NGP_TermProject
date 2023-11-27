@@ -32,7 +32,7 @@
     <ClInclude Include="GameUtilities.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="Collide.h">
+    <ClInclude Include="Obstacle.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

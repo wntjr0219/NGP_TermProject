@@ -7,11 +7,16 @@
 #include "Common.h"
 #include "OpenGL.h"
 #include "GameUtilities.h"
+//-----------------------해야할 것들
+// 1. send, recv 클라이언트와 서버 순서 맞추고, 경우에 따라 비동기식으로 변경 해야할지에 대한것 논의
+// 2. 클라이언트에 enemydraw함수 추가, 서버에 enemy인 경우의 처리 추가
+// peeking 테스트 및 reStart, Pause 함수 처리
+// 최종 테스트
 //------------------------Common.h에 있는것들
 //void err_quit(const char* s) { }
 #define SERVERPORT 4500
 //-------------------------함수선언
-void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo);
+void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
 void readRankInfoFile(const char* filename, RankedInfo*& rankInfo);
 void initPlayer();
 void initObstacle();
@@ -30,7 +35,7 @@ const char* filename;
 SCRankingPacket rankingPacket;
 POSXYZ playerPos;
 RankedInfo rankInfo;
-float player_hp;
+SCCharacterPacket Character;
 
 
 //------------------------Thread 정의
@@ -60,26 +65,20 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		retval = WaitForSingleObject(moveEvent, INFINITE);
 		RecvProcess(sock);
 
-		//send() 장애물에 대한 변경 : 한꺼번에 위치변경값, 충돌검사값;
-		//send하는 부분 함수화로 간략하게 수정할 예정
-		for (int i = 0; i < 18; ++i) {
-			if (!Obstacles[i].collide()) {
-				SCCollidePacket Collide;
-				sphere_hp_color += 0.2;
-				Collide.type = SCCOLLIDE;
-				Collide.playerHpColor = sphere_hp_color;
-				send(sock, (char*)&Collide, sizeof(SCCollidePacket), MSG_WAITALL);
-			}
-			SCCharacterPacket Character;
-			//charcter 구조체 값 초기화해야함
-			//Character.characterXYZ ....
-			send(sock, (char*)&Character, sizeof(SCCharacterPacket), MSG_WAITALL);
-			// 구조체 값 초기화해야함
-			SCWinnerPacket Winner;
-			send(sock, (char*)&Winner, sizeof(SCWinnerPacket), MSG_WAITALL);
-			//
-		}
+		Character.type = SCCHARACTERPACKET;
+		Character.isCollide = false;
 		
+		SCObstaclePacket Obs;
+		Obs.type = SCOBSTACLEPACKET;
+		for (int i = 0; i < 18; ++i) {
+			Obs.obstacleXYZ[i] = Obstacles[i].mPos;
+			if (!Obstacles[i].collide()) {
+				Character.isCollide = true;
+			}
+		}
+		send(sock, (char*)&Obs, sizeof(SCObstaclePacket), MSG_WAITALL); // obstacle패킷 send
+		send(sock, (char*)&Character, sizeof(SCCharacterPacket), MSG_WAITALL); // character패킷 send
+		//send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), MSG_WAITALL); // enemy패킷 send
 
 		if (isDead()) { OverGame(sock); }
 
@@ -156,13 +155,13 @@ void moveCharacter(int keytype)
 		glutTimerFunc(30, sphere_hide_timer, 1);
 		break;
 	case KEYLEFT:
-		if (!(sphere_pos_x <= -3.0)) {
-			sphere_pos_x -= 1.0;
+		if (!(Character.characterXYZ.posX <= -3.0)) {
+			Character.characterXYZ.posX -= 1.0;
 		}
 		break;
 	case KEYRIGHT:
-		if (!(sphere_pos_x >= 3.0)) {
-			sphere_pos_x += 1.0;
+		if (!(Character.characterXYZ.posX >= 3.0)) {
+			Character.characterXYZ.posX += 1.0;
 		}
 		break;
 	default: // 값이 없을때 안누른거냐 오류인거냐 모름
@@ -192,7 +191,7 @@ void setRankedInfo(SOCKET sock)
 
 
 void RecvProcess(SOCKET& sock) {
-	BYTE type;
+	BYTE type = 0;
 	int ret = recv(sock, (char*)type, sizeof(BYTE), MSG_PEEK);
 	if (ret == SOCKET_ERROR) { exit(-1); }
 	switch (type)
@@ -200,8 +199,7 @@ void RecvProcess(SOCKET& sock) {
 	case CSINITIALPACKET:
 		CSInitialPacket Initial;
 		recv(sock, (char*)&Initial, sizeof(CSInitialPacket), MSG_WAITALL);
-		//meter값도 받아야함.(수정필요)
-		writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial);
+		writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial, Initial.meter);
 		setRankedInfo(sock);
 		break;
 	case CSKEYPACKET:
@@ -222,7 +220,7 @@ void RecvProcess(SOCKET& sock) {
 
 }
 
-void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo)
+void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter)
 {
 	std::ofstream file(filename, std::ios::binary | std::ios::app);
 	if (!file.is_open()) {
@@ -264,15 +262,17 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
 void initPlayer()
 {
 	// 플레이어 위치 상수값 초기화 (맵의 정중앙 위치)
-	playerPos.posX = 0.0;
-	playerPos.posY = 0.4;
-	playerPos.posZ = 3.0;
+	Character.characterXYZ.posX = 0.0;
+	Character.characterXYZ.posY = 0.4;
+	Character.characterXYZ.posZ = 3.0;
+	Character.isCollide = false;
+	Character.type = SCCHARACTERPACKET;
 }
 
 void initObstacle()
 {
 	// 장애물 위치 랜덤값범위로 초기화
-	Obstacles.reserve(18);
+	Obstacles.reserve(OBSTACLES);
 	int i;
 
 	// cube
@@ -301,28 +301,29 @@ void initGamePlayer()
 }
 
 bool isDead() {
-	return player_hp > 2.0;
+	return Character.isCollide > 10;
+	//return player_hp > 2.0;
 }
 
 void sphere_jump_timer(int value)
 {
-	if (jumped == true && sphere_pos_y < 2.6) {
-		sphere_pos_y += 0.2;
-		if (sphere_pos_y >= 2.6) {
+	if (jumped == true && Character.characterXYZ.posY < 2.6) {
+		Character.characterXYZ.posY += 0.2;
+		if (Character.characterXYZ.posY >= 2.6) {
 			jumped = false;
 			falling = true;
 		}
 		glutTimerFunc(30, sphere_jump_timer, 1);
 	}
 	else if (falling == true) {
-		sphere_pos_y -= 0.2;
-		if (sphere_pos_y <= 0.4) {
+		Character.characterXYZ.posY -= 0.2;
+		if (Character.characterXYZ.posY <= 0.4) {
 			falling = false;
 		}
 		glutTimerFunc(30, sphere_jump_timer, 1);
 	}
 	else if (falling == false) {
-		sphere_pos_y = 0.4;
+		Character.characterXYZ.posY = 0.4;
 		running = false;
 		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
 	}
@@ -330,23 +331,23 @@ void sphere_jump_timer(int value)
 
 void sphere_hide_timer(int value)
 {
-	if (hide == true && sphere_pos_y >= -2.0) {
-		sphere_pos_y -= 0.35;
-		if (sphere_pos_y <= -2.0) {
+	if (hide == true && Character.characterXYZ.posY >= -2.0) {
+		Character.characterXYZ.posY -= 0.35;
+		if (Character.characterXYZ.posY <= -2.0) {
 			hide = false;
 			unhide = true;
 		}
 		glutTimerFunc(40, sphere_hide_timer, 1);
 	}
 	else if (unhide == true) {
-		sphere_pos_y += 0.35;
-		if (sphere_pos_y >= 0.4) {
+		Character.characterXYZ.posY += 0.35;
+		if (Character.characterXYZ.posY >= 0.4) {
 			unhide = false;
 		}
 		glutTimerFunc(40, sphere_hide_timer, 1);
 	}
 	else if (unhide == false) {
-		sphere_pos_y = 0.4;
+		Character.characterXYZ.posY = 0.4;
 		running = false;
 		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);
 	}
@@ -370,6 +371,11 @@ void OverGame(SOCKET sock)
 	pause.seconds = 5;
 	pause.type = SCPAUSEPACKET;
 	send(sock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+
+	SCWinnerPacket Winner;
+	Winner.type = SCWINNERPACKET;
+	Winner.winner = false;
+	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), MSG_WAITALL);
 }
 
 

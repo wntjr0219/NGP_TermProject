@@ -1,12 +1,148 @@
 #include "OpenGL.h"
 #include "Init.h"
 #include "GameUtilities.h"
+#include <math.h>
+
+#include <WS2tcpip.h>
+//#pragma comment(lib, "WS32.lib");
+#pragma comment(lib, "ws2_32.lib")
+
 #define window_w 500
 #define window_h 400
 
+const char* SERVERIP = "127.0.0.1";
+int SERVERPORT = 4000;
+
+SOCKET wSock;
+
+void ConnectServer() {
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) exit(1);
+
+	SOCKET Wsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (Wsock == INVALID_SOCKET) {
+		printf("socket()"); exit(1);
+	}
+
+	SOCKADDR_IN seraddr;
+
+	memset(&seraddr, 0, sizeof(seraddr));
+	seraddr.sin_family = AF_INET;
+	inet_pton(AF_INET, SERVERIP, &seraddr.sin_addr);
+
+	seraddr.sin_port = htons(SERVERPORT);
+
+	if (connect(Wsock, (sockaddr*)&seraddr, sizeof(seraddr)) == SOCKET_ERROR) {
+		printf("connect()"); exit(1);
+	}
+
+}
+
+void DisConnectServer() {
+
+	closesocket(wSock);
+
+	WSACleanup();
+}
+
+void moveCharacter(char* packet) {
+	if (packet[0] == SCCHARACTERPACKET) {
+		SCCharacterPacket player;
+		memcpy(&player, packet, sizeof(SCCharacterPacket));
+		PlayerPos = player.characterXYZ;
+		sphere_pos_x = PlayerPos.posX;
+		sphere_pos_y = PlayerPos.posY;
+		sphere_pos_z = PlayerPos.posZ;
+		if (player.isCollide) {
+			sphere_hp_color += 0.2;
+		}
+	}
+	else if (packet[0] == SCENEMYPACKET) {
+		SCEnemyPacket enemy;
+		memcpy(&enemy, packet, sizeof(SCEnemyPacket));
+		EnemysPos = enemy.EnemyXYZ;
+		enemy_sphere_pos_x = EnemysPos.posX;
+		enemy_sphere_pos_y = EnemysPos.posY;
+		enemy_sphere_pos_z = EnemysPos.posZ;
+	}
+}
+
+void moveObstacles(char* packet) {
+	SCObstaclePacket Obs;
+	memcpy(&Obs, packet, sizeof(SCObstaclePacket));
+
+	for (int i = 0; i < OBSTACLES; ++i) {
+		if (i < 5) {
+			cubePos[i] = Obs.obstacleXYZ[i];
+		}
+		else if (i < 10 and i >= 5) {
+			normalCubePos[i - 5] = Obs.obstacleXYZ[i];
+		}
+		else if (i < 15 and i >= 10) {
+			hardCubePos[i - 10] = Obs.obstacleXYZ[i];
+		}
+		else {
+			hardCube2Pos[i - 15] = Obs.obstacleXYZ[i];
+		}
+	}
+
+
+	//Obstacles.posXYZ = Obs.obstacleXYZ;
+}
+
+void showRankings(char* packet) {
+	SCRankingPacket rankings;
+	memcpy(&rankings, packet, sizeof(SCRankingPacket));
+
+	for (int i = 0; i < RANKERS; ++i) {
+		printf("%d  - %s\n", i, rankings.rankings[i]);
+	}
+}
+void ReceiveProcess() {
+	BYTE type = 0;
+	int ret = recv(wSock, (char*)type, sizeof(BYTE), MSG_PEEK);
+	if (ret == SOCKET_ERROR) { exit(-1); }
+
+	switch (type)
+	{
+	case SCCHARACTERPACKET:
+		SCCharacterPacket charactermove;
+		recv(wSock, (char*)&charactermove, sizeof(SCCharacterPacket), MSG_WAITALL);
+		moveCharacter((char*)&charactermove);
+		break;
+	case SCENEMYPACKET:
+		SCEnemyPacket enemymove;
+		recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
+		moveCharacter((char*)&enemymove);
+		break;
+	case SCPAUSEPACKET:
+		SCPausePacket pause;
+		recv(wSock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+		//Pause();
+		break;
+	case SCOBSTACLEPACKET:
+		SCObstaclePacket obastaclesmove;
+		recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
+		moveObstacles((char*)&obastaclesmove);
+		break;
+	case SCRANKINGPACKET:
+		SCRankingPacket rankings;
+		recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
+		showRankings((char*)&rankings);
+		break;
+	default:
+		std::cout << "invalid Packet" << std::endl;
+		exit(-1);
+		break;
+	}
+}
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
+	ConnectServer();
+
+
 	//--- 윈도우 생성하기
 	glutInit(&argc, argv); // glut 초기화
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH); // 디스플레이 모드 설정
@@ -23,8 +159,6 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	srand(time(NULL));
 
 	// init 부분 함수화 
-	initCubePos(cubePos, normalCubePos, hardCubePos, hardCube2Pos);
-	
 	InitProgram(s_program);
 
 	playingBgm();
@@ -33,12 +167,17 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutReshapeFunc(Reshape); // 다시 그리기 콜백함수 지정
 	glutKeyboardFunc(Keyboard); // 키보드 입력 콜백함수 지정
 	glutSpecialFunc(Special);
-	glutTimerFunc(50, cube_move_timer, 1);
+	//glutTimerFunc(50, cube_move_timer, 1);
 	glutMainLoop(); // 이벤트 처리 시작
+
+	DisConnectServer();
 
 }
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 {
+	//그리기 전에 먼저 값을 recv하여 렌더링에 반영해주어야함.
+	ReceiveProcess();
+
 	//--- 변경된 배경색 설정
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -50,7 +189,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glm::mat4 projection = glm::mat4(1.0f);
 	glm::mat4 pt = glm::mat4(1.0f);
 	glm::mat4 pR = glm::mat4(1.0f);
-	
+
 	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
 	pt = glm::translate(pt, glm::vec3(x_m_camera, 0.0, z_m_camera));
 	pR = glm::rotate(pR, glm::radians(30.0f), glm::vec3(1.0, 0.0, 0.0));
@@ -75,6 +214,8 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glUniform3f(lightPosColorLocation, 0.0, 0.0, 5.0);
 	int viewPosColorLocation = glGetUniformLocation(s_program, "viewPos");
 	glUniform3f(lightPosColorLocation, cameraPos_x, cameraPos_y, cameraPos_z);
+
+
 
 	if (death == true) {
 		Game_Over();
@@ -135,157 +276,58 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 }
 GLvoid Special(int key, int x, int y)
 {
-	if (key == GLUT_KEY_UP) {
-		if (running == false) {
-			jumped = true;
-			running = true;
-			Jump_n_Hide_Sound();
-			glutTimerFunc(30, sphere_jump_timer, 1);
-		}
-	}
-	else if (key == GLUT_KEY_DOWN) {
-		if (running == false) {
-			hide = true;
-			running = true;
-			Jump_n_Hide_Sound();
-			glutTimerFunc(40, sphere_hide_timer, 1);
-		}	
-	}
-	else if (key == GLUT_KEY_RIGHT) {
-		if (!(sphere_pos_x >= 3.0)) {
-			sphere_pos_x += 1.0;
-		}
-	}
-	else if (key == GLUT_KEY_LEFT) {
-		if (!(sphere_pos_x <= -3.0)) {
-			sphere_pos_x -= 1.0;
-		}
-	}
-}
-void initCubePos(POSXYZ* cubePos, POSXYZ* normalCubePos, POSXYZ* hardCubePos, POSXYZ* hardCube2Pos)
-{
-	for (int i = 0; i < 5; i++) {
-		cubePos[i].posX = (float)(rand() % 7);
-		cubePos[i].posY = (float)(rand() % 2);
-		cubePos[i].posZ = -(float)(rand() % 100 + 29);
-	}
-	for (int i = 0; i < 5; i++) {
-		normalCubePos[i].posX = (float)(rand() % 7);
-		normalCubePos[i].posY = (float)(rand() % 2);
-		normalCubePos[i].posZ = -(float)(rand() % 100 + 40);
-	}
-	for (int i = 0; i < 5; i++) {
-		hardCubePos[i].posX = (float)(rand() % 7);
-		hardCubePos[i].posY = (float)(rand() % 2);
-		hardCubePos[i].posZ = -(float)(rand() % 100 + 40);
-	}
-	for (int i = 0; i < 3; i++) {
-		hardCube2Pos[i].posX = 3.0;
-		hardCube2Pos[i].posY = (float)(rand() % 4);
-		hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
-	}
-}
-void sphere_jump_timer(int value)
-{
-	if (jumped == true && sphere_pos_y < 2.6) {
-		sphere_pos_y += 0.2;
-		if (sphere_pos_y >= 2.6) {
-			jumped = false;
-			falling = true;
-		}
-		glutTimerFunc(30, sphere_jump_timer, 1);
-	}
-	else if (falling == true) {
-		sphere_pos_y -= 0.2;
-		if (sphere_pos_y <= 0.4) {
-			falling = false;
-		}
-		glutTimerFunc(30, sphere_jump_timer, 1);
-	}
-	else if (falling == false) {
-		sphere_pos_y = 0.4;
-		running = false;
-		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
-	}
-}
-void sphere_hide_timer(int value)
-{
-	if (hide == true && sphere_pos_y >= -2.0) {
-		sphere_pos_y -= 0.35;
-		if (sphere_pos_y <= -2.0) {
-			hide = false;
-			unhide = true;
-		}
-		glutTimerFunc(40, sphere_hide_timer, 1);
-	}
-	else if (unhide == true) {
-		sphere_pos_y += 0.35;
-		if (sphere_pos_y >= 0.4) {
-			unhide = false;
-		}
-		glutTimerFunc(40, sphere_hide_timer, 1);
-	}
-	else if (unhide == false) {
-		sphere_pos_y = 0.4;
-		running = false;
-		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);   
-	}
-}
-void cube_move_timer(int value)
-{
-	for (int i = 0; i < 5; i++) {
-		cubePos[i].posZ += 0.5;
-		if (meter > 200) { normalCubePos[i].posZ += 1.0; }
-		if (meter > 600) { hardCubePos[i].posZ += 1.0; }
-		if (meter > 1000) { hardCube2Pos[i].posZ += 1.15; }
-		if (cubePos[i].posZ >= 6.0) {
-			cubePos[i].posZ = -50.0;
-			cubePos[i].posX = (float)(rand() % 7);
-			cubePos[i].posY = (float)(rand() % 2);
-		}
-		if (meter > 200 && normalCubePos[i].posZ >= 6.0) {
-			normalCubePos[i].posZ = -50.0;
-			normalCubePos[i].posX = (float)(rand() % 7);
-			normalCubePos[i].posY = (float)(rand() % 2);
-		}
-		if (meter > 600 && hardCubePos[i].posZ >= 6.0) {
-			hardCubePos[i].posZ = -50.0;
-			hardCubePos[i].posX = (float)(rand() % 7);
-			hardCubePos[i].posY = (float)(rand() % 2);
-		}
-		if (meter > 1000 && hardCube2Pos[i].posZ >= 6.0) {
-			hardCube2Pos[i].posZ = -(float)(rand() % 200 + 40);
-			hardCube2Pos[i].posY = (float)(rand() % 3);
-		}
 
-		collide = handle_collide(i);
-		if (collide == true) {
-			sphere_hp_color += 0.2;
-		}
-		collide = normal_handle_collide(i);
-		if (collide == true) {
-			sphere_hp_color += 0.2;
-		}
-		collide = hard_handle_collide(i);
-		if (collide == true) {
-			sphere_hp_color += 0.2;
-		}
-		collide = hard2_handle_collide(i);
-		if (collide == true) {
-			sphere_hp_color += 0.2;
-		}
-		if (sphere_hp_color > 2.0) {
-			printf("\nGame Over\n");
-			printf("최종 기록 : %d 미터\n", meter);
-			death = true;
-			glutTimerFunc(100, game_over_timer, 1);
-			drawScene();
-			return;
-		}
+	//if (key == GLUT_KEY_UP) {
+	//	if (running == false) {
+	//		jumped = true;
+	//		running = true;
+	//		Jump_n_Hide_Sound();
+	//		glutTimerFunc(30, sphere_jump_timer, 1);
+	//	}
+	//}
+	//else if (key == GLUT_KEY_DOWN) {
+	//	if (running == false) {
+	//		hide = true;
+	//		running = true;
+	//		Jump_n_Hide_Sound();
+	//		glutTimerFunc(40, sphere_hide_timer, 1);
+	//	}	
+	//}
+	//else if (key == GLUT_KEY_RIGHT) {
+	//	if (!(sphere_pos_x >= 3.0)) {
+	//		sphere_pos_x += 1.0;
+	//	}
+	//}
+	//else if (key == GLUT_KEY_LEFT) {
+	//	if (!(sphere_pos_x <= -3.0)) {
+	//		sphere_pos_x -= 1.0;
+	//	}
+	//}
+	CSKeyPacket pmove;
+	switch (key)
+	{
+	case GLUT_KEY_UP:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYUP;
+		break;
+	case GLUT_KEY_DOWN:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYDOWN;
+
+		break;
+	case GLUT_KEY_RIGHT:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYRIGHT;
+		break;
+	case GLUT_KEY_LEFT:
+		pmove.type = CSKEYPACKET;
+		pmove.keytype = KEYLEFT;
+		break;
+	default:
+		break;
 	}
-	meter++;
-	drawScene();
-	glutTimerFunc(50, cube_move_timer, 1);
+	send(wSock, (char*)&pmove, sizeof(CSKeyPacket), 0);
+
 }
 void game_over_timer(int value)
 {
@@ -372,6 +414,8 @@ void Game_Over()
 	glBindVertexArray(VAO);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+
 }
 void draw_universe()
 {
@@ -415,7 +459,7 @@ void draw_universe()
 
 
 	//--- 텍스처 그릴 부분
-	
+
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture); //--- 텍스처 바인딩
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); //--- 현재 바인딩된 텍스처의 파라미터 설정하기
@@ -471,7 +515,7 @@ GLvoid draw_board() {
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
-	
+
 }
 GLvoid draw_sphere()
 {
@@ -514,7 +558,7 @@ void draw_cube(POSXYZ cubePos)
 	glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 
-	
+
 	GLint gIndices[]
 	{
 		0,1,2,
@@ -539,7 +583,7 @@ void draw_cube(POSXYZ cubePos)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cubeEBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(gIndices), &gIndices, GL_STATIC_DRAW);
 
-	
+
 
 	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
 	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
@@ -821,53 +865,6 @@ void draw_land()
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
-
-bool handle_collide(int i)
-{
-	if (cubePos[i].posX - 3 + 0.5 < sphere_pos_x - 0.49) return false;
-	if (cubePos[i].posX - 3 - 0.5 > sphere_pos_x + 0.49) return false;
-	if (cubePos[i].posY + 1.0 < sphere_pos_y - 0.49) return false;
-	if (cubePos[i].posY > sphere_pos_y + 0.49) return false;
-	if (cubePos[i].posZ + 0.5 < sphere_pos_z - 0.49) return false;
-	if (cubePos[i].posZ - 0.5 > sphere_pos_z + 0.49) return false;
-
-
-	return true;
-}
-bool normal_handle_collide(int i)
-{
-	if (normal_cube_pos_x[i] - 3 + 0.5 < sphere_pos_x - 0.49) return false;
-	if (normal_cube_pos_x[i] - 3 - 0.5 > sphere_pos_x + 0.49) return false;
-	if (normal_cube_pos_y[i] + 1.0 < sphere_pos_y - 0.49) return false;
-	if (normal_cube_pos_y[i] > sphere_pos_y + 0.49) return false;
-	if (normal_cube_pos_z[i] + 0.5 < sphere_pos_z - 0.49) return false;
-	if (normal_cube_pos_z[i] - 0.5 > sphere_pos_z + 0.49) return false;
-
-	return true;
-}
-bool hard_handle_collide(int i)
-{
-	if (hard_cube_pos_x[i] - 3 + 1.0 < sphere_pos_x - 0.49) return false;
-	if (hard_cube_pos_x[i] - 3 - 1.0 > sphere_pos_x + 0.49) return false;
-	if (hard_cube_pos_y[i] + 2.0 < sphere_pos_y - 0.49) return false;
-	if (hard_cube_pos_y[i] > sphere_pos_y + 0.49) return false;
-	if (hard_cube_pos_z[i] + 0.5 < sphere_pos_z - 0.49) return false;
-	if (hard_cube_pos_z[i] - 0.5 > sphere_pos_z + 0.49) return false;
-
-	return true;
-}
-bool hard2_handle_collide(int i)
-{
-	if (hard_cube2_pos_x[i] - 3 + 4.0 < sphere_pos_x - 0.49) return false;
-	if (hard_cube2_pos_x[i] - 3 - 4.0 > sphere_pos_x + 0.49) return false;
-	if (hard_cube2_pos_y[i] + 1.0 < sphere_pos_y - 0.49) return false;
-	if (hard_cube2_pos_y[i] > sphere_pos_y + 0.49) return false;
-	if (hard_cube2_pos_z[i] + 0.5 < sphere_pos_z - 0.49) return false;
-	if (hard_cube2_pos_z[i] - 0.5 > sphere_pos_z + 0.49) return false;
-
-	return true;
-}
-
 void cleanUp()
 {
 	glDeleteBuffers(1, &cubeVBO);
@@ -882,4 +879,5 @@ void cleanUp()
 	glDeleteBuffers(1, &xzboardVBO);
 	glDeleteTextures(1, &texture);
 	free(data);
+
 }
