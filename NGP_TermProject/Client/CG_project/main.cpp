@@ -11,7 +11,7 @@
 #define window_h 400
 
 const char* SERVERIP = "127.0.0.1";
-int SERVERPORT = 4000;
+int SERVERPORT = 4500;
 
 SOCKET wSock;
 
@@ -19,9 +19,9 @@ void ConnectServer() {
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) exit(1);
 
-	SOCKET Wsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	wSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	if (Wsock == INVALID_SOCKET) {
+	if (wSock == INVALID_SOCKET) {
 		printf("socket()"); exit(1);
 	}
 
@@ -33,7 +33,7 @@ void ConnectServer() {
 
 	seraddr.sin_port = htons(SERVERPORT);
 
-	if (connect(Wsock, (sockaddr*)&seraddr, sizeof(seraddr)) == SOCKET_ERROR) {
+	if (connect(wSock, (sockaddr*)&seraddr, sizeof(seraddr)) == SOCKET_ERROR) {
 		printf("connect()"); exit(1);
 	}
 
@@ -101,9 +101,11 @@ void showRankings(char* packet) {
 }
 void ReceiveProcess() {
 	BYTE type = 0;
-	int ret = recv(wSock, (char*)type, sizeof(BYTE), MSG_PEEK);
+	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
+	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
-
+	
+	std::cout << (packet_type)type << std::endl;
 	switch (type)
 	{
 	case SCCHARACTERPACKET:
@@ -142,7 +144,6 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
 	ConnectServer();
 
-
 	//--- 윈도우 생성하기
 	glutInit(&argc, argv); // glut 초기화
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH); // 디스플레이 모드 설정
@@ -167,7 +168,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutReshapeFunc(Reshape); // 다시 그리기 콜백함수 지정
 	glutKeyboardFunc(Keyboard); // 키보드 입력 콜백함수 지정
 	glutSpecialFunc(Special);
-	//glutTimerFunc(50, cube_move_timer, 1);
+	glutTimerFunc(65, render, 1);
 	glutMainLoop(); // 이벤트 처리 시작
 
 	DisConnectServer();
@@ -235,6 +236,8 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glutSwapBuffers(); //--- 화면에 출력하기
 
 	cleanUp(); // 렌더링 후 사용자원 정리
+
+	printf("render\n");
 }
 GLvoid Reshape(int w, int h) //--- 콜백 함수: 다시 그리기 콜백 함수
 {
@@ -303,24 +306,23 @@ GLvoid Special(int key, int x, int y)
 	//		sphere_pos_x -= 1.0;
 	//	}
 	//}
+	printf("speical key\n");
 	CSKeyPacket pmove;
+	pmove.type = CSKEYPACKET;
 	switch (key)
 	{
 	case GLUT_KEY_UP:
-		pmove.type = CSKEYPACKET;
 		pmove.keytype = KEYUP;
 		break;
 	case GLUT_KEY_DOWN:
-		pmove.type = CSKEYPACKET;
 		pmove.keytype = KEYDOWN;
-
 		break;
 	case GLUT_KEY_RIGHT:
-		pmove.type = CSKEYPACKET;
+		printf("keyright\n");
 		pmove.keytype = KEYRIGHT;
 		break;
 	case GLUT_KEY_LEFT:
-		pmove.type = CSKEYPACKET;
+		printf("keyleft\n");
 		pmove.keytype = KEYLEFT;
 		break;
 	default:
@@ -880,4 +882,10 @@ void cleanUp()
 	glDeleteTextures(1, &texture);
 	free(data);
 
+}
+
+void render(int value)
+{
+	drawScene();
+	glutTimerFunc(65, render, 1);
 }

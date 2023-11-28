@@ -7,17 +7,21 @@
 #include "Common.h"
 #include "OpenGL.h"
 #include "GameUtilities.h"
+// 12월 6일 조기검수
+// 12월 12,13일 최종검수
 //-----------------------해야할 것들
 // 1. send, recv 클라이언트와 서버 순서 맞추고, 경우에 따라 비동기식으로 변경 해야할지에 대한것 논의
 // 2. 클라이언트에 enemydraw함수 추가, 서버에 enemy인 경우의 처리 추가
 // peeking 테스트 및 reStart, Pause 함수 처리
 // 최종 테스트
+// moveThread와 playerThread전환이 제대로 되는지 확인
+// glutTimerFunc작동 오류 해결
 //------------------------Common.h에 있는것들
 //void err_quit(const char* s) { }
 #define SERVERPORT 4500
 //-------------------------함수선언
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
-void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int meter);
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter);
 void initPlayer();
 void initObstacle();
 void initGamePlayer();
@@ -43,15 +47,16 @@ SCCharacterPacket Character;
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
 DWORD WINAPI MoveThread(LPVOID arg) {
-
-	SOCKET obsSock = (SOCKET)arg;
-
+	printf("\nmovethread");
+	//SOCKET obsSock = (SOCKET)arg;
+	
+	//gluttimerfunc 작동 확인
 	while (1) {
-		// 장애물 위치 변경, 충돌검사
 		glutTimerFunc(50, cube_move_timer, 1);
-	}
 
-	SetEvent(moveEvent);
+		SetEvent(moveEvent);
+	}
+	
 	return 0;
 }
 
@@ -60,26 +65,38 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 
 	DWORD retval;
 	SOCKET sock = (SOCKET)arg;
-
+	
 	while (1) {
 		retval = WaitForSingleObject(moveEvent, INFINITE);
-		RecvProcess(sock);
-
+		printf("\nmeter : %d\n", meter);
+		printf("playerthread");
 		Character.type = SCCHARACTERPACKET;
 		Character.isCollide = false;
-		
+
 		SCObstaclePacket Obs;
 		Obs.type = SCOBSTACLEPACKET;
+		
 		for (int i = 0; i < 18; ++i) {
+			//------------임시 테스트용 추가----------------
+			Obstacles[i].mPos.posZ += +1.0;
+			Obstacles[i].reSetObstacle(i);
+			//----------------------------------------------
 			Obs.obstacleXYZ[i] = Obstacles[i].mPos;
-			if (!Obstacles[i].collide()) {
+			if (Obstacles[i].collide()) {
 				Character.isCollide = true;
 			}
 		}
-		send(sock, (char*)&Obs, sizeof(SCObstaclePacket), MSG_WAITALL); // obstacle패킷 send
-		send(sock, (char*)&Character, sizeof(SCCharacterPacket), MSG_WAITALL); // character패킷 send
+		int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
+		if (retval == SOCKET_ERROR) {
+			printf("\n%d\n", WSAGetLastError());
+		}
+
+		RecvProcess(sock);
+
+		//send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
 		//send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), MSG_WAITALL); // enemy패킷 send
 
+		
 		if (isDead()) { OverGame(sock); }
 
 		SetEvent(playerEvent);
@@ -92,7 +109,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 
 //------------------------ Main 함수
 
-int main(void) {
+int main(int argc, char** argv) {
 
 
 	WSADATA wsa;
@@ -120,17 +137,20 @@ int main(void) {
 	playerEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	// 플레이어 위치, 장애물 위치 초기화
+	glutInit(&argc, argv); // glut 초기화
 	initGamePlayer();
 
 
 	while (1) {
-
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 
 		HANDLE hThread[2];
-		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
-		hThread[1] = CreateThread(NULL, 0, PlayerThread, 0, 0, NULL);
+		hThread[0] = CreateThread(NULL, 0, MoveThread, (LPVOID)clisock, 0, NULL);
+		hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
 
+		CloseHandle(hThread[0]);
+		CloseHandle(hThread[1]);
+		printf("main");
 	}
 
 	CloseHandle(moveEvent);
@@ -140,6 +160,8 @@ int main(void) {
 	closesocket(sersock);
 
 	WSACleanup();
+
+	glutMainLoop();
 }
 
 
@@ -192,8 +214,10 @@ void setRankedInfo(SOCKET sock)
 
 void RecvProcess(SOCKET& sock) {
 	BYTE type = 0;
-	int ret = recv(sock, (char*)type, sizeof(BYTE), MSG_PEEK);
+	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 	if (ret == SOCKET_ERROR) { exit(-1); }
+	type = (packet_type)type;
+	printf("\ntypenum: %d", type);
 	switch (type)
 	{
 	case CSINITIALPACKET:
@@ -357,13 +381,14 @@ void sphere_hide_timer(int value)
 
 void cube_move_timer(int value)
 {
+	
 	for(int i = 0 ; i < Obstacles.size(); ++ i) {
 		Obstacles[i].move(i, meter);
 		Obstacles[i].reSetObstacle(i);
 	}
 	meter++;
+	printf("%d\n", meter);
 	glutTimerFunc(50, cube_move_timer, 1);
-
 }
 
 void OverGame(SOCKET sock)

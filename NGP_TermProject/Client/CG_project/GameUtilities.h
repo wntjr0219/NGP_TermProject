@@ -61,6 +61,7 @@ bool unhide = false;
 bool view_third_person = true;
 bool view_first_person = false;
 bool death = false;
+void render(int value);
 void Game_Over();
 void draw_land();
 void draw_universe();

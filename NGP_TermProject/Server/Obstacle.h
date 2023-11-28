@@ -58,9 +58,9 @@ public:
 		}
 	}
 	void move(int i, int meter) {
-		if (i < 5) { mPos.posZ += -0.5; }
-		else if ( 5 <= i && i < 10 && meter >= 200) { mPos.posZ += -1.0; }
-		else if ( 10 <= i && i < 15 && meter >= 600) { mPos.posZ += -1.0; }
-		else if(meter >= 1000 ){ mPos.posZ += -1.15; }
+		if (i < 5) { mPos.posZ += 0.5; }
+		else if ( 5 <= i && i < 10 && meter >= 200) { mPos.posZ += 1.0; }
+		else if ( 10 <= i && i < 15 && meter >= 600) { mPos.posZ += 1.0; }
+		else if(meter >= 1000 ){ mPos.posZ += 1.15; }
 	}
 };
