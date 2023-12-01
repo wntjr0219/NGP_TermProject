@@ -15,8 +15,6 @@ private:
 	float mY;
 public:
 
-	Obstacle() {}
-
 	Obstacle(float r, float y, int h)  {
 		mHalfwidth = r;
 		mY = y;

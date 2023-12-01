@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 #include "protocol.h"
 #include "Common.h"
 #include "OpenGL.h"
@@ -49,15 +50,19 @@ SCCharacterPacket Character;
 DWORD WINAPI MoveThread(LPVOID arg) {
 	printf("\nmovethread");
 	//SOCKET obsSock = (SOCKET)arg;
-	
+	DWORD retval;
 	//gluttimerfunc 작동 확인
 	while (1) {
-		glutTimerFunc(50, cube_move_timer, 1);
+		if (WaitForSingleObject(moveEvent, INFINITE) == WAIT_FAILED) return 0;
+		cube_move_timer();
+		Sleep(30);
+		//glutTimerFunc(50, cube_move_timer, 1);
 
-		SetEvent(moveEvent);
+		SetEvent(playerEvent);
 	}
 	
 	return 0;
+
 }
 
 //여기서 뭘 처리할 것인가
@@ -67,9 +72,9 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	SOCKET sock = (SOCKET)arg;
 	
 	while (1) {
-		retval = WaitForSingleObject(moveEvent, INFINITE);
-		printf("\nmeter : %d\n", meter);
-		printf("playerthread");
+		retval = WaitForSingleObject(playerEvent, INFINITE);
+		//printf("\nmeter : %d\n", meter);
+		//printf("playerthread");
 		Character.type = SCCHARACTERPACKET;
 		Character.isCollide = false;
 
@@ -78,28 +83,29 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		
 		for (int i = 0; i < 18; ++i) {
 			//------------임시 테스트용 추가----------------
-			Obstacles[i].mPos.posZ += +1.0;
-			Obstacles[i].reSetObstacle(i);
+			//Obstacles[i].mPos.posZ += +1.0;
+			//Obstacles[i].reSetObstacle(i);
 			//----------------------------------------------
 			Obs.obstacleXYZ[i] = Obstacles[i].mPos;
 			if (Obstacles[i].collide()) {
-				Character.isCollide = true;
+				Character.isCollide = true; 
 			}
 		}
 		int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
 		if (retval == SOCKET_ERROR) {
-			printf("\n%d\n", WSAGetLastError());
+			if(retval == NULL) {}
+			//else printf("\n%d\n", WSAGetLastError());
 		}
 
 		RecvProcess(sock);
 
-		//send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
+		send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
 		//send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), MSG_WAITALL); // enemy패킷 send
 
 		
 		if (isDead()) { OverGame(sock); }
 
-		SetEvent(playerEvent);
+		SetEvent(moveEvent);
 	}
 
 	return 0;
@@ -133,7 +139,7 @@ int main(int argc, char** argv) {
 	int addrlen = sizeof(cliaddr);
 
 	// 이벤트 생성
-	moveEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	moveEvent = CreateEvent(NULL, FALSE, TRUE, NULL);
 	playerEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	// 플레이어 위치, 장애물 위치 초기화
@@ -143,6 +149,8 @@ int main(int argc, char** argv) {
 
 	while (1) {
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+		u_long on = 1;
+		ioctlsocket(clisock, FIONBIO, &on);
 
 		HANDLE hThread[2];
 		hThread[0] = CreateThread(NULL, 0, MoveThread, (LPVOID)clisock, 0, NULL);
@@ -215,7 +223,11 @@ void setRankedInfo(SOCKET sock)
 void RecvProcess(SOCKET& sock) {
 	BYTE type = 0;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
-	if (ret == SOCKET_ERROR) { exit(-1); }
+	if (ret == SOCKET_ERROR) { 
+		if (WSAGetLastError() == 10035) return;
+		else exit(-1); 
+	}
+	if (type == 0) return;
 	type = (packet_type)type;
 	printf("\ntypenum: %d", type);
 	switch (type)
@@ -241,6 +253,7 @@ void RecvProcess(SOCKET& sock) {
 		exit(-1);
 		break;
 	}
+	return;
 
 }
 
@@ -379,7 +392,7 @@ void sphere_hide_timer(int value)
 	}
 }
 
-void cube_move_timer(int value)
+void cube_move_timer()
 {
 	
 	for(int i = 0 ; i < Obstacles.size(); ++ i) {
@@ -387,8 +400,8 @@ void cube_move_timer(int value)
 		Obstacles[i].reSetObstacle(i);
 	}
 	meter++;
-	printf("%d\n", meter);
-	glutTimerFunc(50, cube_move_timer, 1);
+	//printf("%d\n", meter);
+	//glutTimerFunc(50, cube_move_timer, 1);
 }
 
 void OverGame(SOCKET sock)

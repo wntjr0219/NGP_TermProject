@@ -28,7 +28,7 @@ int meter = 0; // 점수 역할 , 난이도 조정장치(일정 meter 이상 가면 난이도 오르고
 
 
 void game_over_timer(int value);
-void cube_move_timer(int value);
+void cube_move_timer();
 void sphere_jump_timer(int value);
 void sphere_hide_timer(int value);
 bool jumped = false;
