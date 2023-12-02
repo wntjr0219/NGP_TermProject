@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 #include "protocol.h"
 #include "Common.h"
 #include "OpenGL.h"
@@ -10,12 +11,13 @@
 // 12월 6일 조기검수
 // 12월 12,13일 최종검수
 //-----------------------해야할 것들
-// 1. send, recv 클라이언트와 서버 순서 맞추고, 경우에 따라 비동기식으로 변경 해야할지에 대한것 논의
+// 1. send, recv 작동확인
 // 2. 클라이언트에 enemydraw함수 추가, 서버에 enemy인 경우의 처리 추가
 // peeking 테스트 및 reStart, Pause 함수 처리
 // 최종 테스트
 // moveThread와 playerThread전환이 제대로 되는지 확인
 // glutTimerFunc작동 오류 해결
+// 몇명인지 파악하는 거 / 어떤 곳에 보내줘야할지(ip이용)
 //------------------------Common.h에 있는것들
 //void err_quit(const char* s) { }
 #define SERVERPORT 4500
@@ -27,9 +29,12 @@ void initObstacle();
 void initGamePlayer();
 bool isDead();
 void OverGame(SOCKET sock);
-void RecvProcess(SOCKET& sock);
+void RecvProcess(SOCKET sock);
 void setRankedInfo(SOCKET sock);
 void moveCharacter(int keytype);
+void sendObstaclePacket(SOCKET sock);
+void sendCharacterPacket(SOCKET sock);
+void sendEnemyPacket(SOCKET sock);
 void reStart();
 //------------------------전역변수(공유자원포함)
 int numOfClient = 0;
@@ -41,19 +46,23 @@ POSXYZ playerPos;
 RankedInfo rankInfo;
 SCCharacterPacket Character;
 
-
 //------------------------Thread 정의
 
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
 DWORD WINAPI MoveThread(LPVOID arg) {
-	printf("\nmovethread");
+	
 	//SOCKET obsSock = (SOCKET)arg;
 	
 	//gluttimerfunc 작동 확인
 	while (1) {
-		glutTimerFunc(50, cube_move_timer, 1);
-
+		//printf("\nmovethread");
+		std::thread([] {
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			cube_move_timer(1);
+			}).detach();
+		//glutTimerFunc(55, cube_move_timer, 1);
+		Sleep(50);
 		SetEvent(moveEvent);
 	}
 	
@@ -62,43 +71,24 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 
 //여기서 뭘 처리할 것인가
 DWORD WINAPI PlayerThread(LPVOID arg) {
-
 	DWORD retval;
 	SOCKET sock = (SOCKET)arg;
 	
 	while (1) {
 		retval = WaitForSingleObject(moveEvent, INFINITE);
-		printf("\nmeter : %d\n", meter);
-		printf("playerthread");
-		Character.type = SCCHARACTERPACKET;
+		
 		Character.isCollide = false;
 
-		SCObstaclePacket Obs;
-		Obs.type = SCOBSTACLEPACKET;
-		
-		for (int i = 0; i < 18; ++i) {
-			//------------임시 테스트용 추가----------------
-			Obstacles[i].mPos.posZ += +1.0;
-			Obstacles[i].reSetObstacle(i);
-			//----------------------------------------------
-			Obs.obstacleXYZ[i] = Obstacles[i].mPos;
-			if (Obstacles[i].collide()) {
-				Character.isCollide = true;
-			}
-		}
-		int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
-		if (retval == SOCKET_ERROR) {
-			printf("\n%d\n", WSAGetLastError());
-		}
+		sendObstaclePacket(sock);
 
 		RecvProcess(sock);
 
-		//send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
-		//send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), MSG_WAITALL); // enemy패킷 send
-
+		sendCharacterPacket(sock);
+		//sendEnemyPacket(sock);
 		
 		if (isDead()) { OverGame(sock); }
 
+		Sleep(95);
 		SetEvent(playerEvent);
 	}
 
@@ -110,7 +100,6 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 //------------------------ Main 함수
 
 int main(int argc, char** argv) {
-
 
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 1;
@@ -145,7 +134,8 @@ int main(int argc, char** argv) {
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 
 		HANDLE hThread[2];
-		hThread[0] = CreateThread(NULL, 0, MoveThread, (LPVOID)clisock, 0, NULL);
+		//movethread가 한번만 생성되야함.
+		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
 		hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
 
 		CloseHandle(hThread[0]);
@@ -178,11 +168,15 @@ void moveCharacter(int keytype)
 	case KEYLEFT:
 		if (!(Character.characterXYZ.posX <= -3.0)) {
 			Character.characterXYZ.posX -= 1.0;
+			printf("recv LEFT\n");
+			printf("charcter posX : %f\n", Character.characterXYZ.posX);
 		}
 		break;
 	case KEYRIGHT:
 		if (!(Character.characterXYZ.posX >= 3.0)) {
 			Character.characterXYZ.posX += 1.0;
+			printf("recv RIGHT\n");
+			printf("charcter posX : %f\n", Character.characterXYZ.posX);
 		}
 		break;
 	default: // 값이 없을때 안누른거냐 오류인거냐 모름
@@ -191,8 +185,6 @@ void moveCharacter(int keytype)
 	}
 
 }
-
-
 
 void setRankedInfo(SOCKET sock)
 {
@@ -212,34 +204,46 @@ void setRankedInfo(SOCKET sock)
 }
 
 
-void RecvProcess(SOCKET& sock) {
-	BYTE type = 0;
+void RecvProcess(SOCKET sock) {
+	u_long mode = 1;
+	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
+		printf("error code : %d\n", WSAGetLastError());
+	}
+	BYTE type = 10;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
-	if (ret == SOCKET_ERROR) { exit(-1); }
+	if (ret == SOCKET_ERROR) {
+		//exit(-1); 
+	}
 	type = (packet_type)type;
-	printf("\ntypenum: %d", type);
-	switch (type)
-	{
-	case CSINITIALPACKET:
-		CSInitialPacket Initial;
-		recv(sock, (char*)&Initial, sizeof(CSInitialPacket), MSG_WAITALL);
-		writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial, Initial.meter);
-		setRankedInfo(sock);
-		break;
-	case CSKEYPACKET:
-		CSKeyPacket Move;
-		recv(sock, (char*)&Move, sizeof(CSKeyPacket), MSG_WAITALL);
-		moveCharacter(Move.keytype);
-		break;
-	case CSRESUMEPACKET:
-		CSResumePacket Resume;
-		recv(sock, (char*)&Resume, sizeof(CSResumePacket), MSG_WAITALL);
-		reStart();
-		break;
-	default:
-		std::cout << "invalid Packet" << std::endl;
-		exit(-1);
-		break;
+	//printf("type : %d\n", type);
+
+	if (ret > 0) {
+		switch (type)
+		{
+		case CSINITIALPACKET:
+			CSInitialPacket Initial;
+			recv(sock, (char*)&Initial, sizeof(CSInitialPacket), MSG_WAITALL);
+			writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial, Initial.meter);
+			setRankedInfo(sock);
+			break;
+		case CSKEYPACKET:
+			CSKeyPacket Move;
+			recv(sock, (char*)&Move, sizeof(CSKeyPacket), 0);
+			printf("keypacket\n");
+			moveCharacter(Move.keytype);
+			break;
+		case CSRESUMEPACKET:
+			CSResumePacket Resume;
+			recv(sock, (char*)&Resume, sizeof(CSResumePacket), MSG_WAITALL);
+			reStart();
+			break;
+		default:
+			/*BYTE type;
+			recv(sock, (char*)&type, sizeof(BYTE), MSG_WAITALL);*/
+			std::cout << "invalid Packet" << std::endl;
+			//exit(-1);
+			break;
+		}
 	}
 
 }
@@ -388,7 +392,7 @@ void cube_move_timer(int value)
 	}
 	meter++;
 	printf("%d\n", meter);
-	glutTimerFunc(50, cube_move_timer, 1);
+	//glutTimerFunc(50, cube_move_timer, 1);
 }
 
 void OverGame(SOCKET sock)
@@ -404,6 +408,52 @@ void OverGame(SOCKET sock)
 	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), MSG_WAITALL);
 }
 
+void sendObstaclePacket(SOCKET sock)
+{
+	SCObstaclePacket Obs;
+	Obs.type = SCOBSTACLEPACKET;
+
+	for (int i = 0; i < 18; ++i) {
+		Obs.obstacleXYZ[i] = Obstacles[i].mPos;
+		if (Obstacles[i].collide()) {
+			Character.isCollide = true;
+		}
+	}
+	int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
+	if (retval == SOCKET_ERROR) {
+		int error = WSAGetLastError();
+		if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS) {
+			printf("\n%d\n", error);
+		}
+		//exit(-1);
+	}
+
+}
+
+void sendCharacterPacket(SOCKET sock)
+{
+	Character.type = SCCHARACTERPACKET;
+	int retval = send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
+	if (retval == SOCKET_ERROR) {
+		int error = WSAGetLastError();
+		if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS) {
+			printf("\n%d\n", error);
+		}
+		//exit(-1);
+	}
+}
+
+void sendEnemyPacket(SOCKET sock)
+{
+	//int retval = send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), 0); // enemy패킷 send
+	//if (retval == SOCKET_ERROR) {
+	//	int error = WSAGetLastError();
+	//	if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS) {
+	//		printf("\n%d\n", error);
+	//	}
+	//	//exit(-1);
+	//}
+}
 
 
 void reStart()

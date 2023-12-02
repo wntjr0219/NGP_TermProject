@@ -1,6 +1,6 @@
 ﻿  main.cpp
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(39,20): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
-C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(42,26): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(40,20): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
+C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(43,26): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
 C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(58,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
 C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(99,10): warning C4477: 'printf' : 서식 문자열 '%s'에 'char *' 형식의 인수가 필요하지만 variadic 인수 2의 형식이 'RankedInfo'입니다.
 C:\Users\user\Desktop\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(144,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.

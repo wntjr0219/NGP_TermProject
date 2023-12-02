@@ -21,6 +21,7 @@ unsigned char* data;
 int dwID0;
 int dwID;
 
+
 float sphere_hp_color = 0.0;
 float x_scale = 4.0;
 float y_scale = 4.0;

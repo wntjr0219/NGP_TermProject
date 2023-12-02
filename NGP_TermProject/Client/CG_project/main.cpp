@@ -100,7 +100,7 @@ void showRankings(char* packet) {
 	}
 }
 void ReceiveProcess() {
-	BYTE type = 0;
+	BYTE type = 10;
 	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
@@ -177,7 +177,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 {
 	//그리기 전에 먼저 값을 recv하여 렌더링에 반영해주어야함.
-	ReceiveProcess();
+	//ReceiveProcess();
 
 	//--- 변경된 배경색 설정
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -318,17 +318,16 @@ GLvoid Special(int key, int x, int y)
 		pmove.keytype = KEYDOWN;
 		break;
 	case GLUT_KEY_RIGHT:
-		printf("keyright\n");
 		pmove.keytype = KEYRIGHT;
 		break;
 	case GLUT_KEY_LEFT:
-		printf("keyleft\n");
 		pmove.keytype = KEYLEFT;
 		break;
 	default:
 		break;
 	}
 	send(wSock, (char*)&pmove, sizeof(CSKeyPacket), 0);
+	printf("send key");
 
 }
 void game_over_timer(int value)
@@ -886,6 +885,10 @@ void cleanUp()
 
 void render(int value)
 {
+	ReceiveProcess();	// obstacle 움직임 수신을 위한 recv
+	ReceiveProcess();	// 캐릭터 패킷 움직임 수신을 위한 recv
+	//ReceiveProcess();	// 적 패킷 움직임 수신을 위한 recv
+
 	drawScene();
-	glutTimerFunc(65, render, 1);
+	glutTimerFunc(55, render, 1);
 }
