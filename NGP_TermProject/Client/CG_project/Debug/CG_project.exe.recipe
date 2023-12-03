@@ -2,7 +2,11 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
+<<<<<<< Updated upstream
       <FullPath>C:\Users\dhtpg\source\sehyeon\CG_project\Debug\CG_project.exe</FullPath>
+=======
+      <FullPath>C:\Users\wntjr\Desktop\NGP_TermProject\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe</FullPath>
+>>>>>>> Stashed changes
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

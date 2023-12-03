@@ -1,8 +1,172 @@
 #include "OpenGL.h"
 #include "Init.h"
 #include "GameUtilities.h"
+<<<<<<< Updated upstream
 #define window_w 1000
 #define window_h 800
+=======
+#include <math.h>
+
+#include <WS2tcpip.h>
+//#pragma comment(lib, "WS32.lib");
+#pragma comment(lib, "ws2_32.lib")
+
+#define window_w 500
+#define window_h 400
+
+const char* SERVERIP = "127.0.0.1";
+int SERVERPORT = 4500;
+
+SOCKET wSock;
+
+void ConnectServer() {
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) exit(1);
+
+	wSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (wSock == INVALID_SOCKET) {
+		printf("socket()"); exit(1);
+	}
+
+	SOCKADDR_IN seraddr;
+
+	memset(&seraddr, 0, sizeof(seraddr));
+	seraddr.sin_family = AF_INET;
+	inet_pton(AF_INET, SERVERIP, &seraddr.sin_addr);
+
+	seraddr.sin_port = htons(SERVERPORT);
+
+	if (connect(wSock, (sockaddr*)&seraddr, sizeof(seraddr)) == SOCKET_ERROR) {
+		printf("connect()"); exit(1);
+	}
+
+}
+
+void DisConnectServer() {
+
+	closesocket(wSock);
+
+	WSACleanup();
+}
+
+void moveCharacter(char* packet) {
+	if (packet[0] == SCCHARACTERPACKET) {
+		SCCharacterPacket player;
+		memcpy(&player, packet, sizeof(SCCharacterPacket));
+		PlayerPos = player.characterXYZ;
+		sphere_pos_x = PlayerPos.posX;
+		sphere_pos_y = PlayerPos.posY;
+		sphere_pos_z = PlayerPos.posZ;
+		if (player.isCollide) {
+			sphere_hp_color += 0.2;
+		}
+	}
+	else if (packet[0] == SCENEMYPACKET) {
+		SCEnemyPacket enemy;
+		memcpy(&enemy, packet, sizeof(SCEnemyPacket));
+		EnemysPos = enemy.EnemyXYZ;
+		enemy_sphere_pos_x = EnemysPos.posX;
+		enemy_sphere_pos_y = EnemysPos.posY;
+		enemy_sphere_pos_z = EnemysPos.posZ;
+	}
+}
+
+void moveObstacles(char* packet) {
+	SCObstaclePacket Obs;
+	memcpy(&Obs, packet, sizeof(SCObstaclePacket));
+
+	for (int i = 0; i < OBSTACLES; ++i) {
+		if (i < 5) {
+			cubePos[i] = Obs.obstacleXYZ[i];
+		}
+		else if (i < 10 and i >= 5) {
+			normalCubePos[i - 5] = Obs.obstacleXYZ[i];
+		}
+		else if (i < 15 and i >= 10) {
+			hardCubePos[i - 10] = Obs.obstacleXYZ[i];
+		}
+		else {
+			hardCube2Pos[i - 15] = Obs.obstacleXYZ[i];
+		}
+	}
+
+
+	//Obstacles.posXYZ = Obs.obstacleXYZ;
+}
+
+void showRankings(char* packet) {
+	SCRankingPacket rankings;
+	memcpy(&rankings, packet, sizeof(SCRankingPacket));
+
+	for (int i = 0; i < RANKERS; ++i) {
+		printf("%d  - %s\n", i, rankings.rankings[i]);
+	}
+}
+
+void ReceiveProcess() {
+	BYTE type = 0;
+	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
+	//printf("%d\n", WSAGetLastError());
+	if (ret == SOCKET_ERROR) { exit(-1); }
+	
+	std::cout << (packet_type)type << std::endl;
+	switch (type)
+	{
+	case SCCHARACTERPACKET:
+		SCCharacterPacket charactermove;
+		recv(wSock, (char*)&charactermove, sizeof(SCCharacterPacket), MSG_WAITALL);
+		moveCharacter((char*)&charactermove);
+		break;
+	case SCENEMYPACKET:
+		SCEnemyPacket enemymove;
+		recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
+		moveCharacter((char*)&enemymove);
+		break;
+	case SCPAUSEPACKET:
+		SCPausePacket pause;
+		recv(wSock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+		//Pause();
+		break;
+	case SCOBSTACLEPACKET:
+		SCObstaclePacket obastaclesmove;
+		recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
+		moveObstacles((char*)&obastaclesmove);
+		break;
+	case SCRANKINGPACKET:
+		SCRankingPacket rankings;
+		recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
+		showRankings((char*)&rankings);
+		break;
+	default:
+		std::cout << "invalid Packet" << std::endl;
+		exit(-1);
+		break;
+	}
+}
+>>>>>>> Stashed changes
+
+// 테스트용
+void SendPacket(SOCKET& sock, packet_type type, const void* data, size_t dataSize) {
+	send(sock, (const char*)&type, sizeof(BYTE), 0);
+
+	switch (type) {
+	case CSINITIALPACKET:
+		send(sock, (const char*)data, sizeof(CSInitialPacket), 0);
+		break;
+	case CSKEYPACKET:
+		send(sock, (const char*)data, sizeof(CSKeyPacket), 0);
+		break;
+	/*case CSRESUMEPACKET:
+		send(sock, (const char*)data, sizeof(CSResumePacket), 0);
+		break;*/
+	default:
+		std::cout << "Invalid Packet Type" << std::endl;
+		exit(-1);
+		break;
+	}
+}
+
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
@@ -51,6 +215,10 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutSpecialFunc(Special);
 	glutTimerFunc(50, cube_move_timer, 1);
 	glutMainLoop(); // 이벤트 처리 시작
+<<<<<<< Updated upstream
+=======
+	DisConnectServer();
+>>>>>>> Stashed changes
 
 }
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
@@ -170,6 +338,7 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 }
 GLvoid Special(int key, int x, int y)
 {
+<<<<<<< Updated upstream
 	if (key == GLUT_KEY_UP) {
 		if (running == false) {
 			jumped = true;
@@ -177,6 +346,31 @@ GLvoid Special(int key, int x, int y)
 			Jump_n_Hide_Sound();
 			glutTimerFunc(30, sphere_jump_timer, 1);
 		}
+=======
+	printf("speical key\n");
+	CSKeyPacket pmove;
+	pmove.type = CSKEYPACKET;
+	switch (key)
+	{
+	case GLUT_KEY_UP:
+		pmove.keytype = KEYUP;
+		break;
+	case GLUT_KEY_DOWN:
+		pmove.keytype = KEYDOWN;
+		break;
+	case GLUT_KEY_RIGHT:
+		printf("keyright\n");
+		pmove.keytype = KEYRIGHT;
+		break;
+	case GLUT_KEY_LEFT:
+		printf("keyleft\n");
+		pmove.keytype = KEYLEFT;
+		break;
+	default:  // 키 안 누르면(?)
+		printf("NULL\n");
+		//pmove.keytype = NULL;
+		break;
+>>>>>>> Stashed changes
 	}
 	else if (key == GLUT_KEY_DOWN) {
 		if (running == false) {
