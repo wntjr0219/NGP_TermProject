@@ -62,7 +62,6 @@ public:
 				mPos.posZ = posZ(gen);
 			}
 		}
-
 	}
 
 	void move(int i, int meter) {

@@ -40,12 +40,26 @@ HANDLE moveEvent;
 HANDLE playerEvent;
 const char* filename;
 SCRankingPacket rankingPacket;
-POSXYZ playerPos;
+//POSXYZ player0Pos;
+//POSXYZ player1Pos;
 RankedInfo rankInfo;
-SCCharacterPacket Character;
+SCObstaclePacket Obs;
+PLAYER player0, player1;
+
+struct PLAYER {
+	POSXYZ Pos;
+	bool isCollide;
+};
+
+struct savingIP {
+	SOCKET sock;
+	char ip[STRLEN];
+	bool winner = false;
+};
+
+savingIP playersINFO[2];
 
 //------------------------Thread 정의
-
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
 DWORD WINAPI MoveThread(LPVOID arg) {
@@ -54,12 +68,7 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 	
 	while (1) {
 		Character.isCollide = false;
-		std::thread([] {
-			std::this_thread::sleep_for(std::chrono::milliseconds(30));
-			cube_move_timer(1);
-			}).detach();
-
-			if (jumpRunning) {
+		if (jumpRunning) {
 				std::thread([] {
 					std::this_thread::sleep_for(std::chrono::milliseconds(30));
 					sphere_jump_timer(1);
@@ -72,6 +81,12 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 					sphere_hide_timer(1);
 					}).detach();
 			}
+		std::thread([] {
+			std::this_thread::sleep_for(std::chrono::milliseconds(30));
+			cube_move_timer(1);
+			}).detach();
+
+			
 
 		Sleep(30);
 		SetEvent(moveEvent);
@@ -84,7 +99,16 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 DWORD WINAPI PlayerThread(LPVOID arg) {
 	DWORD retval;
 	SOCKET sock = (SOCKET)arg;
-	
+
+	if (playersINFO[0].sock == sock) {
+		PLAYER player = player0;
+		PLAYER Enemy = player1;
+	}
+	else {
+		PLAYER player = player1;
+		PLAYER Enemy = player0;
+	}
+
 	while (1) {
 		retval = WaitForSingleObject(moveEvent, INFINITE);
 		
@@ -92,19 +116,33 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 
 		RecvProcess(sock);
 
-		sendCharacterPacket(sock);
-		//sendEnemyPacket(sock);
+		sendCharacterPacket(sock, player);
+		sendEnemyPacket(sock, Enemy);
 		
 		if (isDead()) { OverGame(sock); }
 
-		Sleep(95);
+		Sleep(65);
 		SetEvent(playerEvent);
 	}
 
 	return 0;
 }
 
+void saveIP(SOCKET& clisock){
 
+	sockaddr_in addr;
+	int addrLen = sizeof(addr);
+	if (getpeername(clisock, (sockaddr*)&addr, &addrLen) == 0) {
+
+		if (playersINFO[0].ip == NULL) {
+			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[0].ip, sizeof(addr));
+
+		}
+		else {
+			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[1].ip, sizeof(addr));
+		}
+	}
+}
 
 //------------------------ Main 함수
 
@@ -135,16 +173,26 @@ int main(int argc, char** argv) {
 
 	// 플레이어 위치, 장애물 위치 초기화
 	glutInit(&argc, argv); // glut 초기화
-	initGamePlayer();
-
 
 	while (1) {
-		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+		if (playersINFO[0].winner == false and playersINFO[1].winner == false) {
+			if (playersINFO[0].sock == NULL) playersINFO[0].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+			else playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+		}
+		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
+			if(playersINFO[0].winner == true) {}
+			else {}
+		}
+		saveIP(clisock);
+		initGamePlayer();
 
-		HANDLE hThread[2];
+		HANDLE hThread[3];
 		//movethread가 한번만 생성되야함.
 		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
 		hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+		if (playersINFO[1].ip != NULL) {
+			hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+		}
 
 		CloseHandle(hThread[0]);
 		CloseHandle(hThread[1]);
@@ -163,7 +211,7 @@ int main(int argc, char** argv) {
 }
 
 
-void moveCharacter(int keytype) 
+void moveCharacter(int keytype, POSXYZ& player) 
 {
 	switch (keytype)
 	{
@@ -182,22 +230,21 @@ void moveCharacter(int keytype)
 		}
 		break;
 	case KEYLEFT:
-		if (!(Character.characterXYZ.posX <= -3.0)) {
-			Character.characterXYZ.posX -= 1.0;
+		if (!(player.posX <= -3.0)) {
+			player.posX -= 1.0;
 			printf("recv LEFT\n");
-			printf("charcter posX : %f\n", Character.characterXYZ.posX);
+			printf("charcter posX : %f\n", player.posX);
 		}
 		break;
 	case KEYRIGHT:
-		if (!(Character.characterXYZ.posX >= 3.0)) {
-			Character.characterXYZ.posX += 1.0;
+		if (!(player.posX >= 3.0)) {
+			player.posX += 1.0;
 			printf("recv RIGHT\n");
-			printf("charcter posX : %f\n", Character.characterXYZ.posX);
+			printf("charcter posX : %f\n", player.posX);
 		}
 		break;
 	default: 
 		break;
-
 	}
 
 }
@@ -221,10 +268,18 @@ void setRankedInfo(SOCKET sock)
 
 
 void RecvProcess(SOCKET sock) {
+	
+	if(playersINFO[0].sock == sock ){
+		POSXYZ* player = player0Pos;
+	}
+	else {
+		POSXYZ* player = player1Pos;
+	}
 	u_long mode = 1;
 	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
 		printf("error code : %d\n", WSAGetLastError());
 	}
+	
 	BYTE type = 0;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 
@@ -241,7 +296,7 @@ void RecvProcess(SOCKET sock) {
 			CSKeyPacket Move;
 			recv(sock, (char*)&Move, sizeof(CSKeyPacket), 0);
 			printf("keypacket\n");
-			moveCharacter(Move.keytype);
+			moveCharacter(Move.keytype, player);
 			break;
 		case CSRESUMEPACKET:
 			CSResumePacket Resume;
@@ -333,6 +388,7 @@ void initObstacle()
 
 void initGamePlayer()
 {
+	Obstacles.clear();
 	srand(time(NULL));
 	//게임 초기화에 필요한 함수 추가
 	initPlayer();
@@ -390,10 +446,15 @@ void sphere_hide_timer(int value)
 
 void cube_move_timer(int value)
 {
-	srand(time(NULL));
 	for(int i = 0 ; i < Obstacles.size(); ++ i) {
 		Obstacles[i].move(i, meter);
 		Obstacles[i].reSetObstacle(i);
+
+		Obs.obstacleXYZ[i] = Obstacles[i].mPos;
+		if (Obstacles[i].collide()) {
+			Character.isCollide = true;
+			
+		}
 	}
 	meter++;
 }
@@ -413,15 +474,8 @@ void OverGame(SOCKET sock)
 
 void sendObstaclePacket(SOCKET sock)
 {
-	SCObstaclePacket Obs;
 	Obs.type = SCOBSTACLEPACKET;
 
-	for (int i = 0; i < 18; ++i) {
-		Obs.obstacleXYZ[i] = Obstacles[i].mPos;
-		if (Obstacles[i].collide()) {
-			Character.isCollide = true;
-		}
-	}
 	int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
 	if (retval == SOCKET_ERROR) {
 		int error = WSAGetLastError();
@@ -435,7 +489,9 @@ void sendObstaclePacket(SOCKET sock)
 
 void sendCharacterPacket(SOCKET sock)
 {
+	SCCharacterPacket Character;
 	Character.type = SCCHARACTERPACKET;
+
 	int retval = send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
 	if (retval == SOCKET_ERROR) {
 		int error = WSAGetLastError();

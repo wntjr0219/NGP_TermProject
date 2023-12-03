@@ -31,7 +31,6 @@ enum packet_type {
     SCCOLLIDE
 };
 
-
 struct POSXYZ {
     float posX;
     float posY;

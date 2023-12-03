@@ -914,5 +914,6 @@ void render(int value)
 	//ReceiveProcess();	// 적 패킷 움직임 수신을 위한 recv
 
 	drawScene();
-	glutTimerFunc(55, render, 1);
+	glutTimerFunc(30, render, 1);
+	//glutTimerFunc(55, render, 1);
 }
