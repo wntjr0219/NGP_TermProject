@@ -56,6 +56,7 @@ void moveCharacter(char* packet) {
 		sphere_pos_z = PlayerPos.posZ;
 		if (player.isCollide) {
 			sphere_hp_color += 0.2;
+			printf("collide!!\n");
 		}
 	}
 	else if (packet[0] == SCENEMYPACKET) {
@@ -100,43 +101,44 @@ void showRankings(char* packet) {
 	}
 }
 void ReceiveProcess() {
-	BYTE type = 10;
+	BYTE type = 0;
 	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
 	
-	std::cout << (packet_type)type << std::endl;
-	switch (type)
-	{
-	case SCCHARACTERPACKET:
-		SCCharacterPacket charactermove;
-		recv(wSock, (char*)&charactermove, sizeof(SCCharacterPacket), MSG_WAITALL);
-		moveCharacter((char*)&charactermove);
-		break;
-	case SCENEMYPACKET:
-		SCEnemyPacket enemymove;
-		recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
-		moveCharacter((char*)&enemymove);
-		break;
-	case SCPAUSEPACKET:
-		SCPausePacket pause;
-		recv(wSock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
-		//Pause();
-		break;
-	case SCOBSTACLEPACKET:
-		SCObstaclePacket obastaclesmove;
-		recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
-		moveObstacles((char*)&obastaclesmove);
-		break;
-	case SCRANKINGPACKET:
-		SCRankingPacket rankings;
-		recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
-		showRankings((char*)&rankings);
-		break;
-	default:
-		std::cout << "invalid Packet" << std::endl;
-		exit(-1);
-		break;
+	if (ret > 0) {
+		switch (type)
+		{
+		case SCCHARACTERPACKET:
+			SCCharacterPacket charactermove;
+			recv(wSock, (char*)&charactermove, sizeof(SCCharacterPacket), MSG_WAITALL);
+			moveCharacter((char*)&charactermove);
+			break;
+		case SCENEMYPACKET:
+			SCEnemyPacket enemymove;
+			recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
+			moveCharacter((char*)&enemymove);
+			break;
+		case SCPAUSEPACKET:
+			SCPausePacket pause;
+			recv(wSock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+			//Pause();
+			break;
+		case SCOBSTACLEPACKET:
+			SCObstaclePacket obastaclesmove;
+			recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
+			moveObstacles((char*)&obastaclesmove);
+			break;
+		case SCRANKINGPACKET:
+			SCRankingPacket rankings;
+			recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
+			showRankings((char*)&rankings);
+			break;
+		default:
+			std::cout << "invalid Packet" << std::endl;
+			exit(-1);
+			break;
+		}
 	}
 }
 
@@ -156,6 +158,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glewInit();
 
 	CreateSphere(eEBO, eVBO);
+	CreateSphere(enemy_eEBO, enemy_eVBO);
 
 	srand(time(NULL));
 
@@ -224,6 +227,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	draw_universe();
 	draw_board();
 	draw_sphere();
+	draw_enemy_sphere();
 	for (i = 0; i < 5; i++) {
 		draw_cube(cubePos[i]);
 		draw_normal_cube(normalCubePos[i]);
@@ -236,8 +240,6 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glutSwapBuffers(); //--- 화면에 출력하기
 
 	cleanUp(); // 렌더링 후 사용자원 정리
-
-	printf("render\n");
 }
 GLvoid Reshape(int w, int h) //--- 콜백 함수: 다시 그리기 콜백 함수
 {
@@ -306,7 +308,6 @@ GLvoid Special(int key, int x, int y)
 	//		sphere_pos_x -= 1.0;
 	//	}
 	//}
-	printf("speical key\n");
 	CSKeyPacket pmove;
 	pmove.type = CSKEYPACKET;
 	switch (key)
@@ -327,7 +328,6 @@ GLvoid Special(int key, int x, int y)
 		break;
 	}
 	send(wSock, (char*)&pmove, sizeof(CSKeyPacket), 0);
-	printf("send key");
 
 }
 void game_over_timer(int value)
@@ -537,6 +537,30 @@ GLvoid draw_sphere()
 	glEnableVertexAttribArray(1);
 	int objColorLocation = glGetUniformLocation(s_program, "objectColor");
 	glUniform3f(objColorLocation, sphere_hp_color, 1.0f, sphere_hp_color);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDrawElements(GL_TRIANGLES, 2880, GL_UNSIGNED_INT, 0);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
+}
+GLvoid draw_enemy_sphere()
+{
+	unsigned int modelLocation = glGetUniformLocation(s_program, "modelTransform");
+	glm::mat4 model = glm::mat4(1.0f);		// 모델변환
+	glm::mat4 Tt = glm::mat4(1.0f);
+	glm::mat4 Ttt = glm::mat4(1.0f);
+	Tt = glm::translate(Tt, glm::vec3(enemy_sphere_pos_x, 0.0, enemy_sphere_pos_z));
+	Ttt = glm::translate(Ttt, glm::vec3(0.0, enemy_sphere_pos_y, 0.0));
+	model = Tt * Ttt;
+
+	glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));		// 모델변환
+	glBindBuffer(GL_ARRAY_BUFFER, enemy_eVBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, enemy_eEBO);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	int objColorLocation = glGetUniformLocation(s_program, "objectColor");
+	glUniform3f(objColorLocation, 0.9f, 0.9f, 0.9f);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawElements(GL_TRIANGLES, 2880, GL_UNSIGNED_INT, 0);
 	glDisableVertexAttribArray(0);

@@ -33,6 +33,7 @@ void sphere_jump_timer(int value);
 void sphere_hide_timer(int value);
 bool jumped = false;
 bool falling = false;
-bool running = false;
+bool jumpRunning = false;
+bool hideRunning = false;
 bool hide = false;
 bool unhide = false;

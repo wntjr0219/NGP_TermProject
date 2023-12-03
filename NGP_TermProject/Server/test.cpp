@@ -11,13 +11,11 @@
 // 12월 6일 조기검수
 // 12월 12,13일 최종검수
 //-----------------------해야할 것들
-// 1. send, recv 작동확인
-// 2. 클라이언트에 enemydraw함수 추가, 서버에 enemy인 경우의 처리 추가
-// peeking 테스트 및 reStart, Pause 함수 처리
-// 최종 테스트
-// moveThread와 playerThread전환이 제대로 되는지 확인
-// glutTimerFunc작동 오류 해결
+// 클라이언트에 enemydraw함수 추가, 서버에 enemy인 경우의 처리 추가
+// reStart, Pause 함수 처리
 // 몇명인지 파악하는 거 / 어떤 곳에 보내줘야할지(ip이용)
+// 패킷받고 랭킹 파일쓰기/읽기/출력 테스트
+// 최종 테스트
 //------------------------Common.h에 있는것들
 //void err_quit(const char* s) { }
 #define SERVERPORT 4500
@@ -54,15 +52,28 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 	
 	//SOCKET obsSock = (SOCKET)arg;
 	
-	//gluttimerfunc 작동 확인
 	while (1) {
-		//printf("\nmovethread");
+		Character.isCollide = false;
 		std::thread([] {
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			std::this_thread::sleep_for(std::chrono::milliseconds(30));
 			cube_move_timer(1);
 			}).detach();
-		//glutTimerFunc(55, cube_move_timer, 1);
-		Sleep(50);
+
+			if (jumpRunning) {
+				std::thread([] {
+					std::this_thread::sleep_for(std::chrono::milliseconds(30));
+					sphere_jump_timer(1);
+					}).detach();
+			}
+
+			if (hideRunning) {
+				std::thread([] {
+					std::this_thread::sleep_for(std::chrono::milliseconds(30));
+					sphere_hide_timer(1);
+					}).detach();
+			}
+
+		Sleep(30);
 		SetEvent(moveEvent);
 	}
 	
@@ -77,8 +88,6 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	while (1) {
 		retval = WaitForSingleObject(moveEvent, INFINITE);
 		
-		Character.isCollide = false;
-
 		sendObstaclePacket(sock);
 
 		RecvProcess(sock);
@@ -100,7 +109,6 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 //------------------------ Main 함수
 
 int main(int argc, char** argv) {
-
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 1;
 
@@ -160,10 +168,18 @@ void moveCharacter(int keytype)
 	switch (keytype)
 	{
 	case KEYUP:
-		glutTimerFunc(30, sphere_jump_timer, 1);
+		if (jumpRunning == false) {
+			jumped = true;
+			jumpRunning = true;
+			printf("Keyup\n");
+		}
 		break;
 	case KEYDOWN:
-		glutTimerFunc(30, sphere_hide_timer, 1);
+		if (hideRunning == false) {
+			hide = true;
+			hideRunning = true;
+			printf("Keydown\n");
+		}
 		break;
 	case KEYLEFT:
 		if (!(Character.characterXYZ.posX <= -3.0)) {
@@ -179,7 +195,7 @@ void moveCharacter(int keytype)
 			printf("charcter posX : %f\n", Character.characterXYZ.posX);
 		}
 		break;
-	default: // 값이 없을때 안누른거냐 오류인거냐 모름
+	default: 
 		break;
 
 	}
@@ -209,13 +225,8 @@ void RecvProcess(SOCKET sock) {
 	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
 		printf("error code : %d\n", WSAGetLastError());
 	}
-	BYTE type = 10;
+	BYTE type = 0;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
-	if (ret == SOCKET_ERROR) {
-		//exit(-1); 
-	}
-	type = (packet_type)type;
-	//printf("type : %d\n", type);
 
 	if (ret > 0) {
 		switch (type)
@@ -238,10 +249,7 @@ void RecvProcess(SOCKET sock) {
 			reStart();
 			break;
 		default:
-			/*BYTE type;
-			recv(sock, (char*)&type, sizeof(BYTE), MSG_WAITALL);*/
 			std::cout << "invalid Packet" << std::endl;
-			//exit(-1);
 			break;
 		}
 	}
@@ -319,12 +327,13 @@ void initObstacle()
 	}
 	// hard2Cube
 	for (i; i < 18; ++i) {
-		Obstacles.emplace_back(4.0, 1.0, 2);
+		Obstacles.emplace_back(4.0, 1.0, 4);
 	}
 }
 
 void initGamePlayer()
 {
+	srand(time(NULL));
 	//게임 초기화에 필요한 함수 추가
 	initPlayer();
 	initObstacle();
@@ -343,19 +352,17 @@ void sphere_jump_timer(int value)
 			jumped = false;
 			falling = true;
 		}
-		glutTimerFunc(30, sphere_jump_timer, 1);
 	}
 	else if (falling == true) {
 		Character.characterXYZ.posY -= 0.2;
 		if (Character.characterXYZ.posY <= 0.4) {
 			falling = false;
 		}
-		glutTimerFunc(30, sphere_jump_timer, 1);
 	}
 	else if (falling == false) {
 		Character.characterXYZ.posY = 0.4;
-		running = false;
-		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
+		jumpRunning = false;
+		//mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
 	}
 }
 
@@ -367,32 +374,28 @@ void sphere_hide_timer(int value)
 			hide = false;
 			unhide = true;
 		}
-		glutTimerFunc(40, sphere_hide_timer, 1);
 	}
 	else if (unhide == true) {
 		Character.characterXYZ.posY += 0.35;
 		if (Character.characterXYZ.posY >= 0.4) {
 			unhide = false;
 		}
-		glutTimerFunc(40, sphere_hide_timer, 1);
 	}
 	else if (unhide == false) {
 		Character.characterXYZ.posY = 0.4;
-		running = false;
-		mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);
+		hideRunning = false;
+		//mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);
 	}
 }
 
 void cube_move_timer(int value)
 {
-	
+	srand(time(NULL));
 	for(int i = 0 ; i < Obstacles.size(); ++ i) {
 		Obstacles[i].move(i, meter);
 		Obstacles[i].reSetObstacle(i);
 	}
 	meter++;
-	printf("%d\n", meter);
-	//glutTimerFunc(50, cube_move_timer, 1);
 }
 
 void OverGame(SOCKET sock)
