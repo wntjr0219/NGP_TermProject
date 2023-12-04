@@ -19,20 +19,26 @@
 //------------------------Common.h에 있는것들
 //void err_quit(const char* s) { }
 #define SERVERPORT 4500
+//--------------------------------------------------
+struct PLAYER {
+	POSXYZ Pos;
+	bool isCollide;
+	int id;
+};
 //-------------------------함수선언
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
 void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter);
 void initPlayer();
 void initObstacle();
 void initGamePlayer();
-bool isDead();
+bool isDead(PLAYER player);
 void OverGame(SOCKET sock);
 void RecvProcess(SOCKET sock);
 void setRankedInfo(SOCKET sock);
-void moveCharacter(int keytype);
+void moveCharacter(int keytype, PLAYER player);
 void sendObstaclePacket(SOCKET sock);
-void sendCharacterPacket(SOCKET sock);
-void sendEnemyPacket(SOCKET sock);
+void sendCharacterPacket(SOCKET sock, PLAYER player);
+void sendEnemyPacket(SOCKET sock, PLAYER player);
 void reStart();
 //------------------------전역변수(공유자원포함)
 int numOfClient = 0;
@@ -40,20 +46,16 @@ HANDLE moveEvent;
 HANDLE playerEvent;
 const char* filename;
 SCRankingPacket rankingPacket;
-//POSXYZ player0Pos;
-//POSXYZ player1Pos;
+//SCCharacterPacket Character;
 RankedInfo rankInfo;
 SCObstaclePacket Obs;
 PLAYER player0, player1;
 
-struct PLAYER {
-	POSXYZ Pos;
-	bool isCollide;
-};
+//POSXYZ playerPos;
 
 struct savingIP {
 	SOCKET sock;
-	char ip[STRLEN];
+	char ip[INET_ADDRSTRLEN];
 	bool winner = false;
 };
 
@@ -63,30 +65,43 @@ savingIP playersINFO[2];
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
 DWORD WINAPI MoveThread(LPVOID arg) {
-	
-	//SOCKET obsSock = (SOCKET)arg;
-	
-	while (1) {
-		Character.isCollide = false;
-		if (jumpRunning) {
-				std::thread([] {
-					std::this_thread::sleep_for(std::chrono::milliseconds(30));
-					sphere_jump_timer(1);
-					}).detach();
-			}
 
-			if (hideRunning) {
-				std::thread([] {
-					std::this_thread::sleep_for(std::chrono::milliseconds(30));
-					sphere_hide_timer(1);
-					}).detach();
-			}
+
+	while (1) {
+		player0.isCollide = false;
+		player1.isCollide = false;
+		//Character.isCollide = false;
+		if (jumpRunning0) {
+			std::thread([] {
+				std::this_thread::sleep_for(std::chrono::milliseconds(30));
+				sphere_jump_timer0(1);
+				}).detach();
+		}
+		if (hideRunning0) {
+			std::thread([] {
+				std::this_thread::sleep_for(std::chrono::milliseconds(30));
+				sphere_hide_timer0(1);
+				}).detach();
+		}
+		if (jumpRunning1) {
+			std::thread([] {
+				std::this_thread::sleep_for(std::chrono::milliseconds(30));
+				sphere_jump_timer1(1);
+				}).detach();
+		}
+		if (hideRunning1) {
+			std::thread([] {
+				std::this_thread::sleep_for(std::chrono::milliseconds(30));
+				sphere_hide_timer1(1);
+				}).detach();
+		}
+		
+			
 		std::thread([] {
 			std::this_thread::sleep_for(std::chrono::milliseconds(30));
-			cube_move_timer(1);
+			cube_move_timer(1, player0.Pos, player1.Pos);
 			}).detach();
 
-			
 
 		Sleep(30);
 		SetEvent(moveEvent);
@@ -100,13 +115,16 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	DWORD retval;
 	SOCKET sock = (SOCKET)arg;
 
-	if (playersINFO[0].sock == sock) {
-		PLAYER player = player0;
-		PLAYER Enemy = player1;
+	PLAYER player;
+	PLAYER Enemy;
+
+	if (playersINFO[0].sock == sock) {	// 첫 번째로 들어온 유저인 경우의 PlayerThread
+		player = player0;
+		Enemy = player1;
 	}
-	else {
-		PLAYER player = player1;
-		PLAYER Enemy = player0;
+	else {	// 두 번째 들어온 유저인 경우의 PlayerThread
+		player = player1;
+		Enemy = player0;
 	}
 
 	while (1) {
@@ -119,7 +137,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		sendCharacterPacket(sock, player);
 		sendEnemyPacket(sock, Enemy);
 		
-		if (isDead()) { OverGame(sock); }
+		if (isDead(player)) { OverGame(sock); }
 
 		Sleep(65);
 		SetEvent(playerEvent);
@@ -128,7 +146,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	return 0;
 }
 
-void saveIP(SOCKET& clisock){
+void saveIP(SOCKET& clisock) {
 
 	sockaddr_in addr;
 	int addrLen = sizeof(addr);
@@ -136,7 +154,6 @@ void saveIP(SOCKET& clisock){
 
 		if (playersINFO[0].ip == NULL) {
 			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[0].ip, sizeof(addr));
-
 		}
 		else {
 			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[1].ip, sizeof(addr));
@@ -174,10 +191,15 @@ int main(int argc, char** argv) {
 	// 플레이어 위치, 장애물 위치 초기화
 	glutInit(&argc, argv); // glut 초기화
 
+
+	HANDLE hThread[3];
+	hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
+	CloseHandle(hThread[0]);
+
 	while (1) {
 		if (playersINFO[0].winner == false and playersINFO[1].winner == false) {
 			if (playersINFO[0].sock == NULL) playersINFO[0].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
-			else playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+			else if (playersINFO[1].sock == NULL) playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 		}
 		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
 			if(playersINFO[0].winner == true) {}
@@ -186,17 +208,14 @@ int main(int argc, char** argv) {
 		saveIP(clisock);
 		initGamePlayer();
 
-		HANDLE hThread[3];
-		//movethread가 한번만 생성되야함.
-		hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
-		hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
-		if (playersINFO[1].ip != NULL) {
-			hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+		if (playersINFO[0].ip != NULL) {
+			hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+			CloseHandle(hThread[1]);
 		}
-
-		CloseHandle(hThread[0]);
-		CloseHandle(hThread[1]);
-		printf("main");
+		else if (playersINFO[1].ip != NULL) {
+			hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+			CloseHandle(hThread[2]);
+		}
 	}
 
 	CloseHandle(moveEvent);
@@ -211,36 +230,54 @@ int main(int argc, char** argv) {
 }
 
 
-void moveCharacter(int keytype, POSXYZ& player) 
+void moveCharacter(int keytype, PLAYER player) 
 {
 	switch (keytype)
 	{
 	case KEYUP:
-		if (jumpRunning == false) {
-			jumped = true;
-			jumpRunning = true;
-			printf("Keyup\n");
+		if (player.id == 0) {
+			if (jumpRunning0 == false) {
+				jumped0 = true;
+				jumpRunning0 = true;
+				printf("Keyup\n");
+			}
+		}
+		else {
+			if (jumpRunning1 == false) {
+				jumped1 = true;
+				jumpRunning1 = true;
+				printf("Keyup\n");
+			}
 		}
 		break;
 	case KEYDOWN:
-		if (hideRunning == false) {
-			hide = true;
-			hideRunning = true;
-			printf("Keydown\n");
+		if (player.id == 0) {
+			if (hideRunning0 == false) {
+				hide0 = true;
+				hideRunning0 = true;
+				printf("Keydown\n");
+			}
+		}
+		else {
+			if (hideRunning1 == false) {
+				hide1 = true;
+				hideRunning1 = true;
+				printf("Keydown\n");
+			}
 		}
 		break;
 	case KEYLEFT:
-		if (!(player.posX <= -3.0)) {
-			player.posX -= 1.0;
+		if (!(player.Pos.posX <= -3.0)) {
+			player.Pos.posX -= 1.0;
 			printf("recv LEFT\n");
-			printf("charcter posX : %f\n", player.posX);
+			printf("charcter posX : %f\n", player.Pos.posX);
 		}
 		break;
 	case KEYRIGHT:
-		if (!(player.posX >= 3.0)) {
-			player.posX += 1.0;
+		if (!(player.Pos.posX >= 3.0)) {
+			player.Pos.posX += 1.0;
 			printf("recv RIGHT\n");
-			printf("charcter posX : %f\n", player.posX);
+			printf("charcter posX : %f\n", player.Pos.posX);
 		}
 		break;
 	default: 
@@ -269,11 +306,12 @@ void setRankedInfo(SOCKET sock)
 
 void RecvProcess(SOCKET sock) {
 	
+	PLAYER* player;
 	if(playersINFO[0].sock == sock ){
-		POSXYZ* player = player0Pos;
+		player = &player0;
 	}
 	else {
-		POSXYZ* player = player1Pos;
+		player = &player1;
 	}
 	u_long mode = 1;
 	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
@@ -296,7 +334,7 @@ void RecvProcess(SOCKET sock) {
 			CSKeyPacket Move;
 			recv(sock, (char*)&Move, sizeof(CSKeyPacket), 0);
 			printf("keypacket\n");
-			moveCharacter(Move.keytype, player);
+			moveCharacter(Move.keytype, *player);
 			break;
 		case CSRESUMEPACKET:
 			CSResumePacket Resume;
@@ -355,11 +393,23 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter)
 void initPlayer()
 {
 	// 플레이어 위치 상수값 초기화 (맵의 정중앙 위치)
-	Character.characterXYZ.posX = 0.0;
+	/*Character.characterXYZ.posX = 0.0;
 	Character.characterXYZ.posY = 0.4;
 	Character.characterXYZ.posZ = 3.0;
 	Character.isCollide = false;
-	Character.type = SCCHARACTERPACKET;
+	Character.type = SCCHARACTERPACKET;*/
+
+	player0.Pos.posX = 0.0;
+	player0.Pos.posY = 0.4;
+	player0.Pos.posZ = 3.0;
+	player0.isCollide = false;
+	player0.id = 0;
+
+	player1.Pos.posX = 0.0;
+	player1.Pos.posY = 0.4;
+	player1.Pos.posZ = 3.0;
+	player1.isCollide = false;
+	player0.id = 1;
 }
 
 void initObstacle()
@@ -395,65 +445,108 @@ void initGamePlayer()
 	initObstacle();
 }
 
-bool isDead() {
-	return Character.isCollide > 10;
-	//return player_hp > 2.0;
+bool isDead(PLAYER player) {
+	return player.isCollide > 10;
 }
 
-void sphere_jump_timer(int value)
+void sphere_jump_timer0(int value)
 {
-	if (jumped == true && Character.characterXYZ.posY < 2.6) {
-		Character.characterXYZ.posY += 0.2;
-		if (Character.characterXYZ.posY >= 2.6) {
-			jumped = false;
-			falling = true;
+	// if player0 jump
+	if (jumped0 == true && player0.Pos.posY < 2.6) {
+		player0.Pos.posY += 0.2;
+		if (player0.Pos.posY >= 2.6) {
+			jumped0 = false;
+			falling0 = true;
 		}
 	}
-	else if (falling == true) {
-		Character.characterXYZ.posY -= 0.2;
-		if (Character.characterXYZ.posY <= 0.4) {
-			falling = false;
+	else if (falling0 == true) {
+		player0.Pos.posY -= 0.2;
+		if (player0.Pos.posY <= 0.4) {
+			falling0 = false;
 		}
 	}
-	else if (falling == false) {
-		Character.characterXYZ.posY = 0.4;
-		jumpRunning = false;
-		//mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);    //음원 재생 위치를 처음으로 초기화
+	else if (falling0 == false) {
+		player0.Pos.posY = 0.4;
+		jumpRunning0 = false;
 	}
 }
-
-void sphere_hide_timer(int value)
+void sphere_hide_timer0(int value)
 {
-	if (hide == true && Character.characterXYZ.posY >= -2.0) {
-		Character.characterXYZ.posY -= 0.35;
-		if (Character.characterXYZ.posY <= -2.0) {
-			hide = false;
-			unhide = true;
+	// if player0 hide
+	if (hide0 == true && player0.Pos.posY >= -2.0) {
+		player0.Pos.posY -= 0.35;
+		if (player0.Pos.posY <= -2.0) {
+			hide0 = false;
+			unhide0 = true;
 		}
 	}
-	else if (unhide == true) {
-		Character.characterXYZ.posY += 0.35;
-		if (Character.characterXYZ.posY >= 0.4) {
-			unhide = false;
+	else if (unhide0 == true) {
+		player0.Pos.posY += 0.35;
+		if (player0.Pos.posY >= 0.4) {
+			unhide0 = false;
 		}
 	}
-	else if (unhide == false) {
-		Character.characterXYZ.posY = 0.4;
-		hideRunning = false;
-		//mciSendCommand(dwID, MCI_SEEK, MCI_SEEK_TO_START, (DWORD)(LPVOID)NULL);
+	else if (unhide0 == false) {
+		player0.Pos.posY = 0.4;
+		hideRunning0 = false;
+	}
+}
+void sphere_jump_timer1(int value)
+{
+	// if player1 jump
+	if (jumped1 == true && player1.Pos.posY < 2.6) {
+		player1.Pos.posY += 0.2;
+		if (player1.Pos.posY >= 2.6) {
+			jumped1 = false;
+			falling1 = true;
+		}
+	}
+	else if (falling1 == true) {
+		player1.Pos.posY -= 0.2;
+		if (player1.Pos.posY <= 0.4) {
+			falling1 = false;
+		}
+	}
+	else if (falling1 == false) {
+		player1.Pos.posY = 0.4;
+		jumpRunning1 = false;
+	}
+}
+void sphere_hide_timer1(int value)
+{
+	// if player1 hide
+	if (hide1 == true && player1.Pos.posY >= -2.0) {
+		player1.Pos.posY -= 0.35;
+		if (player1.Pos.posY <= -2.0) {
+			hide1 = false;
+			unhide1 = true;
+		}
+	}
+	else if (unhide1 == true) {
+		player1.Pos.posY += 0.35;
+		if (player1.Pos.posY >= 0.4) {
+			unhide1 = false;
+		}
+	}
+	else if (unhide1 == false) {
+		player1.Pos.posY = 0.4;
+		hideRunning1 = false;
 	}
 }
 
-void cube_move_timer(int value)
+void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 {
 	for(int i = 0 ; i < Obstacles.size(); ++ i) {
 		Obstacles[i].move(i, meter);
 		Obstacles[i].reSetObstacle(i);
 
 		Obs.obstacleXYZ[i] = Obstacles[i].mPos;
-		if (Obstacles[i].collide()) {
-			Character.isCollide = true;
-			
+
+		if (Obstacles[i].collide(playerPos0)) {
+			player0.isCollide = true;
+		}
+		else if (Obstacles[i].collide(playerPos1)) {
+			player1.isCollide = true;
 		}
 	}
 	meter++;
@@ -487,10 +580,12 @@ void sendObstaclePacket(SOCKET sock)
 
 }
 
-void sendCharacterPacket(SOCKET sock)
+void sendCharacterPacket(SOCKET sock, PLAYER player)
 {
 	SCCharacterPacket Character;
 	Character.type = SCCHARACTERPACKET;
+	Character.isCollide = player.isCollide;
+	Character.characterXYZ = player.Pos;
 
 	int retval = send(sock, (char*)&Character, sizeof(SCCharacterPacket), 0); // character패킷 send
 	if (retval == SOCKET_ERROR) {
@@ -502,8 +597,12 @@ void sendCharacterPacket(SOCKET sock)
 	}
 }
 
-void sendEnemyPacket(SOCKET sock)
+void sendEnemyPacket(SOCKET sock, PLAYER player)
 {
+	SCEnemyPacket Enemy;
+	Enemy.type = SCENEMYPACKET;
+	Enemy.EnemyXYZ = player.Pos;
+
 	//int retval = send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), 0); // enemy패킷 send
 	//if (retval == SOCKET_ERROR) {
 	//	int error = WSAGetLastError();

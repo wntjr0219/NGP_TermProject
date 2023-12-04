@@ -27,13 +27,21 @@ float sphere_hp_color = 0.0;
 int meter = 0; // 점수 역할 , 난이도 조정장치(일정 meter 이상 가면 난이도 오르고 상자 추가되는형식)
 
 
-void game_over_timer(int value);
-void cube_move_timer(int value);
-void sphere_jump_timer(int value);
-void sphere_hide_timer(int value);
-bool jumped = false;
-bool falling = false;
-bool jumpRunning = false;
-bool hideRunning = false;
-bool hide = false;
-bool unhide = false;
+//void game_over_timer(int value);
+void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1);
+void sphere_jump_timer0(int value);
+void sphere_hide_timer0(int value);
+void sphere_jump_timer1(int value);
+void sphere_hide_timer1(int value);
+bool jumped0 = false;
+bool falling0 = false;
+bool jumpRunning0 = false;
+bool hideRunning0 = false;
+bool hide0 = false;
+bool unhide0 = false;
+bool jumped1 = false;
+bool falling1 = false;
+bool jumpRunning1 = false;
+bool hideRunning1 = false;
+bool hide1 = false;
+bool unhide1 = false;

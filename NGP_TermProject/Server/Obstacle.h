@@ -5,7 +5,8 @@
 #include <random>
 
 
-extern POSXYZ playerPos;
+//extern POSXYZ playerPos;
+//POSXYZ playerPos;
 std::random_device rd;
 std::minstd_rand gen(rd());
 
@@ -35,7 +36,7 @@ public:
 		mPos.posZ = -(float)(rand() % (50 * h) + z);
 	}
 
-	bool collide() {
+	bool collide(POSXYZ playerPos) {
 		if (fabs(mPos.posX - 3 - playerPos.posX) > mHalfwidth + 0.49) return false;
 		//if (fabs(mPos.posY - playerPos.posY) > 0.49 + mY) return false;
 		if (fabs(mPos.posZ - playerPos.posZ) > 0.99) return false;
