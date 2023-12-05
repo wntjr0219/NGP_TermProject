@@ -416,8 +416,8 @@ int main(int argc, char** argv) {
 	glutInit(&argc, argv); // glut 초기화
 	initGamePlayer();
 
-
 	while (1) {
+		initGamePlayer();
 		clisock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 
 		HANDLE hThread[2];
@@ -576,7 +576,7 @@ void initObstacle()
 {
 	// 장애물 위치 랜덤값범위로 초기화
 	Obstacles.reserve(OBSTACLES);
-	int i;
+	int i= 0;
 
 	// cube
 	for (i = 0; i < 5; ++i) {
@@ -598,9 +598,15 @@ void initObstacle()
 
 void initGamePlayer()
 {
+<<<<<<< Updated upstream
+=======
+	Obstacles.clear();
+	srand(time(NULL));
+>>>>>>> Stashed changes
 	//게임 초기화에 필요한 함수 추가
 	initPlayer();
 	initObstacle();
+	meter = 0;
 }
 
 bool isDead() {

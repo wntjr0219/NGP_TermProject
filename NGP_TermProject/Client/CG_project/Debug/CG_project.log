@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ﻿  CG_project.vcxproj -> C:\Users\dhtpg\source\sehyeon\CG_project\Debug\CG_project.exe
 =======
 ﻿  main.cpp
@@ -15,4 +16,7 @@ C:\Users\wntjr\Desktop\NGP_TermProject\NGP_TermProject\NGP_TermProject\Client\CG
 C:\Users\wntjr\Desktop\NGP_TermProject\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(294,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
 C:\Users\wntjr\Desktop\NGP_TermProject\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(295,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
   CG_project.vcxproj -> C:\Users\wntjr\Desktop\NGP_TermProject\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe
+>>>>>>> Stashed changes
+=======
+﻿  CG_project.vcxproj -> D:\2dgp\TeamProject\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe
 >>>>>>> Stashed changes
