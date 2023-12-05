@@ -33,7 +33,7 @@ void initObstacle();
 void initGamePlayer();
 bool isDead(PLAYER player);
 void OverGame(SOCKET sock);
-void RecvProcess(SOCKET sock);
+void RecvProcess(SOCKET sock, PLAYER player);
 void setRankedInfo(SOCKET sock);
 void moveCharacter(int keytype, PLAYER player);
 void sendObstaclePacket(SOCKET sock);
@@ -65,7 +65,6 @@ savingIP playersINFO[2];
 // 여기서는 뭘 처리할 것인가
 // Obstacle Thread를 싱글 멀티로 어떻게 나눌 것인가? -> 도성 제시 : 스레드 Supend후 자식 스레드 생성
 DWORD WINAPI MoveThread(LPVOID arg) {
-
 
 	while (1) {
 		player0.isCollide = false;
@@ -118,21 +117,26 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	PLAYER player;
 	PLAYER Enemy;
 
-	if (playersINFO[0].sock == sock) {	// 첫 번째로 들어온 유저인 경우의 PlayerThread
-		player = player0;
-		Enemy = player1;
+	u_long mode = 1;
+	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
+		printf("error code : %d\n", WSAGetLastError());
 	}
-	else {	// 두 번째 들어온 유저인 경우의 PlayerThread
-		player = player1;
-		Enemy = player0;
-	}
-
 	while (1) {
+		if (playersINFO[0].sock == sock) {	// 첫 번째로 들어온 유저인 경우의 PlayerThread
+			player = player0;
+			Enemy = player1;
+		}
+		else {	// 두 번째 들어온 유저인 경우의 PlayerThread
+			player = player1;
+			Enemy = player0;
+		}
+
+
 		retval = WaitForSingleObject(moveEvent, INFINITE);
 		
 		sendObstaclePacket(sock);
 
-		RecvProcess(sock);
+		RecvProcess(sock, player);
 
 		sendCharacterPacket(sock, player);
 		sendEnemyPacket(sock, Enemy);
@@ -151,12 +155,13 @@ void saveIP(SOCKET& clisock) {
 	sockaddr_in addr;
 	int addrLen = sizeof(addr);
 	if (getpeername(clisock, (sockaddr*)&addr, &addrLen) == 0) {
-
-		if (playersINFO[0].ip == NULL) {
+		if (playersINFO[0].ip[0] == '\0') {
 			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[0].ip, sizeof(addr));
+			printf("ip : %s\n",playersINFO[0].ip);
 		}
 		else {
 			inet_ntop(AF_INET, &addr.sin_addr, playersINFO[1].ip, sizeof(addr));
+			printf("ip : %s\n", playersINFO[1].ip);
 		}
 	}
 }
@@ -191,28 +196,40 @@ int main(int argc, char** argv) {
 	// 플레이어 위치, 장애물 위치 초기화
 	glutInit(&argc, argv); // glut 초기화
 
-
 	HANDLE hThread[3];
 	hThread[0] = CreateThread(NULL, 0, MoveThread, 0, 0, NULL);
 	CloseHandle(hThread[0]);
 
 	while (1) {
 		if (playersINFO[0].winner == false and playersINFO[1].winner == false) {
-			if (playersINFO[0].sock == NULL) playersINFO[0].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
-			else if (playersINFO[1].sock == NULL) playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+			if (playersINFO[0].sock == NULL) {
+				playersINFO[0].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+				playersINFO[0].ip[0] = '\0';
+				printf("accept1\n");
+				clisock = playersINFO[0].sock;
+			}
+			else if (playersINFO[1].sock == NULL) {
+				playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
+				playersINFO[1].ip[0] = '\0';
+				clisock = playersINFO[1].sock;
+			}
 		}
 		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
 			if(playersINFO[0].winner == true) {}
 			else {}
 		}
-		saveIP(clisock);
+		
 		initGamePlayer();
 
-		if (playersINFO[0].ip != NULL) {
+		if (playersINFO[0].ip[0] == '\0') {
+			printf("create 1\n");
+			saveIP(clisock);
 			hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
 			CloseHandle(hThread[1]);
 		}
-		else if (playersINFO[1].ip != NULL) {
+		else if (playersINFO[1].ip[0] == '\0') {
+			printf("create 2\n");
+			saveIP(clisock);
 			hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
 			CloseHandle(hThread[2]);
 		}
@@ -239,7 +256,7 @@ void moveCharacter(int keytype, PLAYER player)
 			if (jumpRunning0 == false) {
 				jumped0 = true;
 				jumpRunning0 = true;
-				printf("Keyup\n");
+				printf("player0Keyup\n");
 			}
 		}
 		else {
@@ -267,19 +284,34 @@ void moveCharacter(int keytype, PLAYER player)
 		}
 		break;
 	case KEYLEFT:
-		if (!(player.Pos.posX <= -3.0)) {
-			player.Pos.posX -= 1.0;
-			printf("recv LEFT\n");
-			printf("charcter posX : %f\n", player.Pos.posX);
+		if (player.id == 0) {
+			if (!(player0.Pos.posX <= -3.0)) {
+				player0.Pos.posX -= 1.0;
+				printf("recv LEFT\n");
+			}
+			break;
 		}
-		break;
+		else {
+			if (!(player1.Pos.posX <= -3.0)) {
+				player1.Pos.posX -= 1.0;
+				printf("recv LEFT\n");
+			}
+		}
 	case KEYRIGHT:
-		if (!(player.Pos.posX >= 3.0)) {
-			player.Pos.posX += 1.0;
-			printf("recv RIGHT\n");
-			printf("charcter posX : %f\n", player.Pos.posX);
+		if (player.id == 0) {
+			if (!(player0.Pos.posX >= 3.0)) {
+				player0.Pos.posX += 1.0;
+				printf("recv RIGHT\n");
+			}
+			break;
 		}
-		break;
+		else {
+			if (!(player1.Pos.posX >= 3.0)) {
+				player1.Pos.posX += 1.0;
+				printf("recv RIGHT\n");
+			}
+			break;
+		}
 	default: 
 		break;
 	}
@@ -304,20 +336,8 @@ void setRankedInfo(SOCKET sock)
 }
 
 
-void RecvProcess(SOCKET sock) {
-	
-	PLAYER* player;
-	if(playersINFO[0].sock == sock ){
-		player = &player0;
-	}
-	else {
-		player = &player1;
-	}
-	u_long mode = 1;
-	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
-		printf("error code : %d\n", WSAGetLastError());
-	}
-	
+void RecvProcess(SOCKET sock, PLAYER player) {
+
 	BYTE type = 0;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 
@@ -334,7 +354,7 @@ void RecvProcess(SOCKET sock) {
 			CSKeyPacket Move;
 			recv(sock, (char*)&Move, sizeof(CSKeyPacket), 0);
 			printf("keypacket\n");
-			moveCharacter(Move.keytype, *player);
+			moveCharacter(Move.keytype, player);
 			break;
 		case CSRESUMEPACKET:
 			CSResumePacket Resume;
@@ -409,7 +429,7 @@ void initPlayer()
 	player1.Pos.posY = 0.4;
 	player1.Pos.posZ = 3.0;
 	player1.isCollide = false;
-	player0.id = 1;
+	player1.id = 1;
 }
 
 void initObstacle()
@@ -603,14 +623,14 @@ void sendEnemyPacket(SOCKET sock, PLAYER player)
 	Enemy.type = SCENEMYPACKET;
 	Enemy.EnemyXYZ = player.Pos;
 
-	//int retval = send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), 0); // enemy패킷 send
-	//if (retval == SOCKET_ERROR) {
-	//	int error = WSAGetLastError();
-	//	if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS) {
-	//		printf("\n%d\n", error);
-	//	}
-	//	//exit(-1);
-	//}
+	int retval = send(sock, (char*)&Enemy, sizeof(SCEnemyPacket), 0); // enemy패킷 send
+	if (retval == SOCKET_ERROR) {
+		int error = WSAGetLastError();
+		if (error == WSAEWOULDBLOCK || error == WSAEINPROGRESS) {
+			printf("\n%d\n", error);
+		}
+		//exit(-1);
+	}
 }
 
 
