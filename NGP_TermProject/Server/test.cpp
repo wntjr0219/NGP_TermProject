@@ -24,6 +24,7 @@ struct PLAYER {
 	POSXYZ Pos;
 	bool isCollide;
 	int id;
+	int collideCnt = 0;
 };
 //-------------------------함수선언
 void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
@@ -32,7 +33,7 @@ void initPlayer();
 void initObstacle();
 void initGamePlayer();
 bool isDead(PLAYER player);
-void OverGame(SOCKET sock);
+void OverGame(SOCKET sock, PLAYER player);
 void RecvProcess(SOCKET sock, PLAYER player);
 void setRankedInfo(SOCKET sock);
 void moveCharacter(int keytype, PLAYER player);
@@ -141,7 +142,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		sendCharacterPacket(sock, player);
 		sendEnemyPacket(sock, Enemy);
 		
-		if (isDead(player)) { OverGame(sock); }
+		if (isDead(player) || isDead(Enemy)) { OverGame(sock,player); }
 
 		Sleep(65);
 		SetEvent(playerEvent);
@@ -207,11 +208,13 @@ int main(int argc, char** argv) {
 				playersINFO[0].ip[0] = '\0';
 				printf("accept1\n");
 				clisock = playersINFO[0].sock;
+				initGamePlayer();
 			}
 			else if (playersINFO[1].sock == NULL) {
 				playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 				playersINFO[1].ip[0] = '\0';
 				clisock = playersINFO[1].sock;
+				initGamePlayer();
 			}
 		}
 		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
@@ -219,7 +222,6 @@ int main(int argc, char** argv) {
 			else {}
 		}
 		
-		initGamePlayer();
 
 		if (playersINFO[0].ip[0] == '\0') {
 			printf("create 1\n");
@@ -256,7 +258,7 @@ void moveCharacter(int keytype, PLAYER player)
 			if (jumpRunning0 == false) {
 				jumped0 = true;
 				jumpRunning0 = true;
-				printf("player0Keyup\n");
+				printf("player0 Keyup\n");
 			}
 		}
 		else {
@@ -272,7 +274,7 @@ void moveCharacter(int keytype, PLAYER player)
 			if (hideRunning0 == false) {
 				hide0 = true;
 				hideRunning0 = true;
-				printf("Keydown\n");
+				printf("player0 Keydown\n");
 			}
 		}
 		else {
@@ -287,7 +289,7 @@ void moveCharacter(int keytype, PLAYER player)
 		if (player.id == 0) {
 			if (!(player0.Pos.posX <= -3.0)) {
 				player0.Pos.posX -= 1.0;
-				printf("recv LEFT\n");
+				printf("player0 recv LEFT\n");
 			}
 			break;
 		}
@@ -297,21 +299,21 @@ void moveCharacter(int keytype, PLAYER player)
 				printf("recv LEFT\n");
 			}
 		}
+		break;
 	case KEYRIGHT:
 		if (player.id == 0) {
 			if (!(player0.Pos.posX >= 3.0)) {
 				player0.Pos.posX += 1.0;
-				printf("recv RIGHT\n");
+				printf("player0 recv RIGHT\n");
 			}
-			break;
 		}
 		else {
 			if (!(player1.Pos.posX >= 3.0)) {
 				player1.Pos.posX += 1.0;
 				printf("recv RIGHT\n");
 			}
-			break;
 		}
+		break;
 	default: 
 		break;
 	}
@@ -466,7 +468,7 @@ void initGamePlayer()
 }
 
 bool isDead(PLAYER player) {
-	return player.isCollide > 10;
+	return player.collideCnt >= 2; 
 }
 
 void sphere_jump_timer0(int value)
@@ -564,25 +566,30 @@ void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 
 		if (Obstacles[i].collide(playerPos0)) {
 			player0.isCollide = true;
+			++player0.collideCnt;
 		}
 		else if (Obstacles[i].collide(playerPos1)) {
 			player1.isCollide = true;
+			++player0.collideCnt;
 		}
 	}
 	meter++;
 }
 
-void OverGame(SOCKET sock)
+void OverGame(SOCKET sock, PLAYER player)
 {
+	std::cout << "pause" << std::endl;
 	SCPausePacket pause;
 	pause.seconds = 5;
 	pause.type = SCPAUSEPACKET;
-	send(sock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
+	send(sock, (char*)&pause, sizeof(SCPausePacket), 0);
 
+	
 	SCWinnerPacket Winner;
 	Winner.type = SCWINNERPACKET;
-	Winner.winner = false;
-	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), MSG_WAITALL);
+	if (isDead(player)) Winner.winner = false;
+	else Winner.winner = true;
+	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
 }
 
 void sendObstaclePacket(SOCKET sock)
