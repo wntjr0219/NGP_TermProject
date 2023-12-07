@@ -18,6 +18,7 @@ enum packet_type {
     CSKEYPACKET,
     CSINITIALPACKET,
     CSRESUMEPACKET,
+    CSEXITPACKET,
     //CSDEADPACKET
 
     //ServerPakcet
@@ -57,6 +58,11 @@ struct CSInitialPacket {
 struct CSResumePacket {
     BYTE type;
     bool start;
+};
+
+struct CSExitPacket {
+    BYTE type;
+    bool exit;
 };
 
 //struct CSDeadPacket {

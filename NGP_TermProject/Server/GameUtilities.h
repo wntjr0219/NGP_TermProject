@@ -16,6 +16,9 @@ POSXYZ hardCubePos[5];
 POSXYZ hardCube2Pos[3];
 std::vector<Obstacle> Obstacles;
 
+
+
+
 GLuint texture;
 BITMAPINFO* bmp;
 unsigned char* data;

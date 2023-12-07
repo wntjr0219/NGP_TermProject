@@ -119,10 +119,11 @@ void ReceiveProcess() {
 			recv(wSock, (char*)&enemymove, sizeof(SCEnemyPacket), MSG_WAITALL);
 			moveCharacter((char*)&enemymove);
 			break;
-		case SCPAUSEPACKET:
-			SCPausePacket pause;
-			recv(wSock, (char*)&pause, sizeof(SCPausePacket), MSG_WAITALL);
-			//Pause();
+		case SCWINNERPACKET:
+			SCWinnerPacket winner;
+			recv(wSock, (char*)&winner, sizeof(SCWinnerPacket), MSG_WAITALL);
+			if (winner.winner) isWin = true;
+			else death = true;
 			break;
 		case SCOBSTACLEPACKET:
 			SCObstaclePacket obastaclesmove;
@@ -335,6 +336,10 @@ void game_over_timer(int value)
 	z_rotate += 5.0;
 	timer += 1;
 	if (timer > 100) {
+		CSExitPacket Exit;
+		Exit.type = CSEXITPACKET;
+		Exit.exit = true;
+		send(wSock, (char*)&Exit, sizeof(Exit), 0);
 		exit(0);
 	}
 	drawScene();
@@ -909,11 +914,30 @@ void cleanUp()
 
 void render(int value)
 {
+	if (isWin) {
+		// 클라에서 자체적으로 몇 초 pause 후, pause가 끝났다고 서버에 send
+		// 서버가 send를 받으면, 저장했던 정보를 다시 보내줄 것임.
+		printf("당신이 이겼습니다!\n");
+		for (int i = 5; i >= 1; --i) {
+			printf("%d초 후 시작\n", i);
+			Sleep(1000);
+		}
+		CSReStartPacket reStart;
+		reStart.type = CSRESTARTPACKET;
+		reStart.start = true;
+		send(wSock, (char*)&reStart, sizeof(CSReStartPacket), 0);
+		isWin = false;
+	}
+
 	ReceiveProcess();	// obstacle 움직임 수신을 위한 recv
 	ReceiveProcess();	// 캐릭터 패킷 움직임 수신을 위한 recv
-	//ReceiveProcess();	// 적 패킷 움직임 수신을 위한 recv
+	ReceiveProcess();	// 적 패킷 움직임 수신을 위한 recv
 
 	drawScene();
-	glutTimerFunc(30, render, 1);
-	//glutTimerFunc(55, render, 1);
+	if (!death) {
+		glutTimerFunc(30, render, 1);
+	}
+	else {
+		glutTimerFunc(40, game_over_timer, 1);
+	}
 }
