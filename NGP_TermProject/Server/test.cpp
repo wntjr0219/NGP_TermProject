@@ -115,9 +115,15 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 			cube_move_timer(1, player0.Pos, player1.Pos);
 			}).detach();
 
+		if (playersINFO[0].winner or playersINFO[1].winner) {
+			//Sleep(5000);
+			playersINFO[0].winner = false;
+			playersINFO[1].winner = false;
+		}
 		Sleep(30);
 		SetEvent(moveEvent);
 	}
+	
 	
 	return 0;
 }
@@ -144,16 +150,18 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		}
 
 		retval = WaitForSingleObject(moveEvent, INFINITE);
-		
-		sendObstaclePacket(sock);
 
-		RecvProcess(sock, player);
+		if (!(playersINFO[0].winner or playersINFO[1].winner)) {
+			sendObstaclePacket(sock);
 
-		sendCharacterPacket(sock, player);
-		sendEnemyPacket(sock, enemy);
+			RecvProcess(sock, player);
+
+			sendCharacterPacket(sock, player);
+			sendEnemyPacket(sock, enemy);
+		}
 		
 		if (isDead(player) || isDead(enemy)) {
-			OverGame(sock, player, enemy);
+			OverGame(sock, player, enemy); 
 		}
 
 		if (threadExit) {
@@ -163,6 +171,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 			closesocket(sock);
 			break;
 		}
+
 
 		Sleep(65);
 		SetEvent(playerEvent);
@@ -619,24 +628,35 @@ void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 
 void OverGame(SOCKET sock, PLAYER& player, PLAYER& enemy)
 {
-		SCWinnerPacket Winner;
-		Winner.type = SCWINNERPACKET;
-		Winner.winner = !isDead(player);
-		//if (!Winner.winner) std::cout << "loser" << std::endl;
-		send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+	SCWinnerPacket Winner;
+	Winner.type = SCWINNERPACKET;
+	Winner.winner = !isDead(player);
+	//if (!Winner.winner) std::cout << "loser" << std::endl;
+	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
 	if (sock == playersINFO[0].sock) {
+		playersINFO[0].winner = true;
 		Winner.winner = !isDead(enemy);
 		send(playersINFO[1].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+		if (!isDead(player)) {
+			player1.Pos.posX = 99.0f;
+			player1.Pos.posY = 99.0f;
+			player1.Pos.posZ = 99.0f;
+		}
 		player1.collideCnt = 0;
 		player0.collideCnt = 0;
 	}
 	else {
+		playersINFO[1].winner = true;
 		Winner.winner = !isDead(enemy);
 		send(playersINFO[0].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+		if (!isDead(player)) {
+			player0.Pos.posX = 99.0f;
+			player0.Pos.posY = 99.0f;
+			player0.Pos.posZ = 99.0f;
+		}
 		player1.collideCnt = 0;
-		player0.collideCnt = 0; 
+		player0.collideCnt = 0;
 	}
-
 }
 
 void sendObstaclePacket(SOCKET sock)
