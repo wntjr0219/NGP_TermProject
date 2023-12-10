@@ -101,6 +101,7 @@ struct SCWinnerPacket {
 struct SCObstaclePacket {
     BYTE type;
     POSXYZ obstacleXYZ[OBSTACLES];
+    bool isMulti;
 };
 
 struct SCRankingPacket {

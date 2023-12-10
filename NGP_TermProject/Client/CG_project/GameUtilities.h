@@ -53,6 +53,8 @@ POSXYZ EnemysPos, PlayerPos;
 POSXYZ Obstacles;
 
 void game_over_timer(int value);
+bool recvRankings = false;
+bool isMulti = false;
 bool isWin = false;
 bool collide = false;
 bool jumped = false;

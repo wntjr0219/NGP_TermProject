@@ -97,15 +97,13 @@ void showRankings(char* packet) {
 	memcpy(&rankings, packet, sizeof(SCRankingPacket));
 
 	for (int i = 0; i < RANKERS; ++i) {
-		printf("%d  - %s\n", i, rankings.rankings[i]);
+		printf("%d  - %s - %dm\n", i, rankings.rankings[i].name, rankings.rankings[i].meter);
 	}
 }
 void ReceiveProcess() {
 	BYTE type = 0;
 	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
-	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
-	//std::cout << type << std::endl;
 	if (ret > 0) {
 		switch (type)
 		{
@@ -123,23 +121,24 @@ void ReceiveProcess() {
 			SCWinnerPacket winner;
 			recv(wSock, (char*)&winner, sizeof(SCWinnerPacket), MSG_WAITALL);
 			printf("Winner\n");
-			if (winner.winner) isWin = true; 
+			if (winner.winner) isWin = true;
 			else death = true;
-
 			break;
 		case SCOBSTACLEPACKET:
 			SCObstaclePacket obastaclesmove;
 			recv(wSock, (char*)&obastaclesmove, sizeof(SCObstaclePacket), MSG_WAITALL);
+			isMulti = obastaclesmove.isMulti;
 			moveObstacles((char*)&obastaclesmove);
 			break;
 		case SCRANKINGPACKET:
 			SCRankingPacket rankings;
 			recv(wSock, (char*)&rankings, sizeof(SCRankingPacket), MSG_WAITALL);
+			printf("recv rankings\n");
+			recvRankings = true;
 			showRankings((char*)&rankings);
 			break;
 		default:
 			std::cout << "invalid Packet" << std::endl;
-			//exit(-1);
 			break;
 		}
 	}
@@ -230,7 +229,9 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	draw_universe();
 	draw_board();
 	draw_sphere();
-	draw_enemy_sphere();
+	if (isMulti) {
+		draw_enemy_sphere();
+	}
 	for (i = 0; i < 5; i++) {
 		draw_cube(cubePos[i]);
 		draw_normal_cube(normalCubePos[i]);
@@ -284,33 +285,6 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 }
 GLvoid Special(int key, int x, int y)
 {
-
-	//if (key == GLUT_KEY_UP) {
-	//	if (running == false) {
-	//		jumped = true;
-	//		running = true;
-	//		Jump_n_Hide_Sound();
-	//		glutTimerFunc(30, sphere_jump_timer, 1);
-	//	}
-	//}
-	//else if (key == GLUT_KEY_DOWN) {
-	//	if (running == false) {
-	//		hide = true;
-	//		running = true;
-	//		Jump_n_Hide_Sound();
-	//		glutTimerFunc(40, sphere_hide_timer, 1);
-	//	}	
-	//}
-	//else if (key == GLUT_KEY_RIGHT) {
-	//	if (!(sphere_pos_x >= 3.0)) {
-	//		sphere_pos_x += 1.0;
-	//	}
-	//}
-	//else if (key == GLUT_KEY_LEFT) {
-	//	if (!(sphere_pos_x <= -3.0)) {
-	//		sphere_pos_x -= 1.0;
-	//	}
-	//}
 	CSKeyPacket pmove;
 	pmove.type = CSKEYPACKET;
 	switch (key)
@@ -338,11 +312,20 @@ void game_over_timer(int value)
 	z_rotate += 5.0;
 	timer += 1;
 	if (timer > 100) {
-		printf("EXit\n");
+		
 		CSExitPacket Exit;
 		Exit.type = CSEXITPACKET;
 		Exit.exit = true;
 		send(wSock, (char*)&Exit, sizeof(Exit), 0);
+
+		if (!isMulti) {
+			while (1) {
+				ReceiveProcess(); // showRankings를 위한 랭킹 리시브 패킷
+				if (recvRankings) break;
+			}
+		}
+		printf("EXit\n");
+
 		exit(0);
 	}
 	drawScene();
@@ -940,6 +923,13 @@ void render(int value)
 		glutTimerFunc(30, render, 1);
 	}
 	else {
+		if (!isMulti) {
+			CSInitialPacket rank;
+			rank.type = CSINITIALPACKET;
+			printf("랭킹 등록 이름을 작성해주세요\n");
+			std::cin >> rank.rank.name;
+			send(wSock, (char*)&rank, sizeof(CSInitialPacket), 0);
+		}
 		glutTimerFunc(40, game_over_timer, 1);
 	}
 }

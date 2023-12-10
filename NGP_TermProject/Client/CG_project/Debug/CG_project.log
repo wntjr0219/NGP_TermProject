@@ -2,13 +2,12 @@
 D:\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(40,25): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
 D:\NGP_TermProject\NGP_TermProject\Client\CG_project\GameUtilities.h(43,31): warning C4305: '초기화 중': 'double'에서 'float'(으)로 잘립니다.
 D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(58,26): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(100,10): warning C4477: 'printf' : 서식 문자열 '%s'에 'char *' 형식의 인수가 필요하지만 variadic 인수 2의 형식이 'RankedInfo'입니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(146,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(163,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(267,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(268,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(269,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(273,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(274,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
-D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(275,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(148,1): warning C4326: 'main'의 반환 형식이 'int'이어야 하는데 'void'입니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(165,12): warning C4244: '인수': 'time_t'에서 'unsigned int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(271,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(272,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(273,11): warning C4305: '+=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(277,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(278,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
+D:\NGP_TermProject\NGP_TermProject\Client\CG_project\main.cpp(279,11): warning C4305: '-=': 'double'에서 'float'(으)로 잘립니다.
   CG_project.vcxproj -> D:\NGP_TermProject\NGP_TermProject\Client\Debug\CG_project.exe

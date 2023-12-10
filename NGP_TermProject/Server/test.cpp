@@ -24,10 +24,12 @@ struct PLAYER {
 	bool isCollide;
 	int id;
 	int collideCnt = 0;
+	bool exist;
 };
 
 struct saveData {
 	std::vector<Obstacle> ObstaclesSave;
+	int saveMeter;
 	PLAYER playerSave;
 };
 saveData save;
@@ -50,7 +52,7 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo);
 void initPlayer();
 void initObstacle();
 void initGamePlayer();
-void saveGameSnapshot();
+void saveGameSnapshot(SOCKET sock);
 bool isDead(PLAYER player);
 void OverGame(SOCKET sock, PLAYER& player, PLAYER& enemy);
 void RecvProcess(SOCKET sock, PLAYER player);
@@ -59,7 +61,7 @@ void moveCharacter(int keytype, PLAYER player);
 void sendObstaclePacket(SOCKET sock);
 void sendCharacterPacket(SOCKET sock, PLAYER player);
 void sendEnemyPacket(SOCKET sock, PLAYER player);
-void reStart();
+void reStart(SOCKET sock);
 //------------------------전역변수(공유자원포함)
 int numOfClient = 0;
 bool restart = false;
@@ -115,15 +117,9 @@ DWORD WINAPI MoveThread(LPVOID arg) {
 			cube_move_timer(1, player0.Pos, player1.Pos);
 			}).detach();
 
-		if (playersINFO[0].winner or playersINFO[1].winner) {
-			//Sleep(5000);
-			playersINFO[0].winner = false;
-			playersINFO[1].winner = false;
-		}
 		Sleep(30);
 		SetEvent(moveEvent);
 	}
-	
 	
 	return 0;
 }
@@ -143,22 +139,23 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		if (playersINFO[0].sock == sock) {	// 첫 번째로 들어온 유저인 경우의 PlayerThread
 			player = player0;
 			enemy = player1;
+			player0.exist = true;
 		}
 		else {	// 두 번째 들어온 유저인 경우의 PlayerThread
 			player = player1;
 			enemy = player0;
+			player1.exist = true;
 		}
 
 		retval = WaitForSingleObject(moveEvent, INFINITE);
 
-		if (!(playersINFO[0].winner or playersINFO[1].winner)) {
-			sendObstaclePacket(sock);
+		sendObstaclePacket(sock);
 
-			RecvProcess(sock, player);
+		RecvProcess(sock, player);
 
-			sendCharacterPacket(sock, player);
-			sendEnemyPacket(sock, enemy);
-		}
+		sendCharacterPacket(sock, player);
+		sendEnemyPacket(sock, enemy);
+
 		
 		if (isDead(player) || isDead(enemy)) {
 			OverGame(sock, player, enemy); 
@@ -166,12 +163,25 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 
 		if (threadExit) {
 			threadExit = false;
-			if (player.id == 0) clearThread[0] = true;
-			else clearThread[1] = true;
-			closesocket(sock);
+			numOfClient--;
+			if (player.id == 0) {
+				if (save.playerSave.id == player.id) {
+					reStart(sock);
+				}
+				player0.exist = false;
+				clearThread[0] = true;
+				printf("%d\n", clearThread[0]);
+			}
+			else if (player.id == 1) {
+				if (save.playerSave.id == player.id) {
+					reStart(sock);
+				}
+				player1.exist = false;
+				clearThread[1] = true;
+				printf("%d\n", clearThread[1]);
+			}
 			break;
 		}
-
 
 		Sleep(65);
 		SetEvent(playerEvent);
@@ -197,7 +207,6 @@ void saveIP(SOCKET& clisock) {
 }
 
 //------------------------ Main 함수
-
 int main(int argc, char** argv) {
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 1;
@@ -237,42 +246,45 @@ int main(int argc, char** argv) {
 				playersINFO[0].ip[0] = '\0';
 				printf("accept1\n");
 				clisock = playersINFO[0].sock;
+				printf("create 1\n");
+				saveIP(clisock);
+				hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+				CloseHandle(hThread[1]);
+				numOfClient++;
+				if (playersINFO[1].sock != NULL) {
+					saveGameSnapshot(clisock);	
+				}
 				initGamePlayer();
 			}
 			else if (playersINFO[1].sock == NULL) {
 				playersINFO[1].sock = accept(sersock, (SOCKADDR*)&cliaddr, &addrlen);
 				playersINFO[1].ip[0] = '\0';
 				clisock = playersINFO[1].sock;
+				printf("create 2\n");
+				saveIP(clisock);
+				hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
+				CloseHandle(hThread[2]);
+				numOfClient++;
 				//두번째 플레이어가 들어왔을때, 모든 게임 정보를 저장해야함.
-				saveGameSnapshot();
+				if (playersINFO[0].sock != NULL) {
+					saveGameSnapshot(clisock);
+				}
 				initGamePlayer();
 			}
 		}
-		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
-			if(playersINFO[0].winner == true) {}
-			else {}
-		}
 
 		if (clearThread[0]) {
+			closesocket(playersINFO[0].sock);
 			playersINFO[0].init();
+			printf("playerThread1 clear\n");
+			clearThread[0] = false;
 		}
-		else if (clearThread[1]) {
+		if (clearThread[1]) {
+			closesocket(playersINFO[1].sock);
 			playersINFO[1].init();
-		}
-		
-
-		if (playersINFO[0].ip[0] == '\0') {
-			printf("create 1\n");
-			saveIP(clisock);
-			hThread[1] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
-			CloseHandle(hThread[1]);
-		}
-		else if (playersINFO[1].ip[0] == '\0') {
-			printf("create 2\n");
-			saveIP(clisock);
-			hThread[2] = CreateThread(NULL, 0, PlayerThread, (LPVOID)clisock, 0, NULL);
-			CloseHandle(hThread[2]);
-		}
+			printf("playerThread2 clear\n");
+			clearThread[1] = false;
+		}	
 	}
 
 	CloseHandle(moveEvent);
@@ -296,14 +308,12 @@ void moveCharacter(int keytype, PLAYER player)
 			if (jumpRunning0 == false) {
 				jumped0 = true;
 				jumpRunning0 = true;
-				printf("player0 Keyup\n");
 			}
 		}
 		else {
 			if (jumpRunning1 == false) {
 				jumped1 = true;
 				jumpRunning1 = true;
-				printf("Keyup\n");
 			}
 		}
 		break;
@@ -312,14 +322,12 @@ void moveCharacter(int keytype, PLAYER player)
 			if (hideRunning0 == false) {
 				hide0 = true;
 				hideRunning0 = true;
-				printf("player0 Keydown\n");
 			}
 		}
 		else {
 			if (hideRunning1 == false) {
 				hide1 = true;
 				hideRunning1 = true;
-				printf("Keydown\n");
 			}
 		}
 		break;
@@ -327,14 +335,12 @@ void moveCharacter(int keytype, PLAYER player)
 		if (player.id == 0) {
 			if (!(player0.Pos.posX <= -3.0)) {
 				player0.Pos.posX -= 1.0;
-				printf("player0 recv LEFT\n");
 			}
 			break;
 		}
 		else {
 			if (!(player1.Pos.posX <= -3.0)) {
 				player1.Pos.posX -= 1.0;
-				printf("recv LEFT\n");
 			}
 		}
 		break;
@@ -342,13 +348,11 @@ void moveCharacter(int keytype, PLAYER player)
 		if (player.id == 0) {
 			if (!(player0.Pos.posX >= 3.0)) {
 				player0.Pos.posX += 1.0;
-				printf("player0 recv RIGHT\n");
 			}
 		}
 		else {
 			if (!(player1.Pos.posX >= 3.0)) {
 				player1.Pos.posX += 1.0;
-				printf("recv RIGHT\n");
 			}
 		}
 		break;
@@ -368,9 +372,11 @@ void setRankedInfo(SOCKET sock)
 	rankingPacket.type = SCRANKINGPACKET;
 	for (int i = 0; i < RANKERS; ++i) {
 		rankingPacket.rankings[i] = rankInfo[i];
+		printf("rankinfo : %s meter : %d\n", rankingPacket.rankings[i].name, rankingPacket.rankings[i].meter);
 	}
 	
-	send(sock, (char*)&rankingPacket, sizeof(rankingPacket), MSG_WAITALL);
+	send(sock, (char*)&rankingPacket, sizeof(rankingPacket), 0);
+	printf("send rank\n");
 	delete[] rankInfo;
 }
 
@@ -395,15 +401,13 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 		case CSKEYPACKET:
 			CSKeyPacket Move;
 			recv(sock, (char*)&Move, sizeof(CSKeyPacket), 0);
-			printf("keypacket\n");
 			moveCharacter(Move.keytype, player);
 			break;
 		case CSRESUMEPACKET:
 			CSResumePacket Resume;
 			recv(sock, (char*)&Resume, sizeof(CSResumePacket), 0);
 			printf("restart\n");
-			restart = Resume.start;
-			//if(Resume.start) reStart();
+			if(Resume.start) reStart(sock);
 			break;
 		case CSEXITPACKET:
 			CSExitPacket Exit;
@@ -414,7 +418,6 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 			break;
 		}
 	}
-
 }
 
 void writeRankInfoFile(const char* filename, RankedInfo* rankInfo)
@@ -452,7 +455,7 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
 	int numCopyElements = std::min(RANKERS, static_cast<int>(allRankings.size()));
 	for (int i = 0; i < numCopyElements; ++i) {
 		rankInfo[i] = allRankings[i];
-		printf("이니셜 : %s , meter: %d\n", rankInfo[i].name, rankInfo[i].meter);
+		//printf("이니셜 : %s , meter: %d\n", rankInfo[i].name, rankInfo[i].meter);
 	}
 	
 	
@@ -502,18 +505,27 @@ void initObstacle()
 
 void initGamePlayer()
 {
+	meter = 0;
 	Obstacles.clear();
 	srand(time(NULL));
 	//게임 초기화에 필요한 함수 추가
 	initPlayer();
 	initObstacle();
+	printf("initGamePlayer\n");
 }
 
-void saveGameSnapshot()
+void saveGameSnapshot(SOCKET sock)
 {
 	save.ObstaclesSave.reserve(OBSTACLES);
 	save.ObstaclesSave = Obstacles;
-	save.playerSave = player0;
+	save.saveMeter = meter;
+	if (playersINFO[0].sock == sock) {
+		save.playerSave = player0;
+	}
+	else if (playersINFO[1].sock == sock) {
+		save.playerSave = player1;
+	}
+	
 }
 
 bool isDead(PLAYER player) {
@@ -615,12 +627,20 @@ void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 		Obs.obstacleXYZ[i] = Obstacles[i].mPos;
 
 		if (Obstacles[i].collide(playerPos0)) {
-			player0.isCollide = true;
-			++player0.collideCnt;
+			if (player0.exist) {
+				player0.isCollide = true;
+				++player0.collideCnt;
+				printf("player0 coll\n");
+				printf("%f\n", playerPos0.posX);
+			}
 		}
 		else if (Obstacles[i].collide(playerPos1)) {
-			player1.isCollide = true;
-			++player1.collideCnt;
+			if (player1.exist) {
+				player1.isCollide = true;
+				++player1.collideCnt;
+				printf("player1 coll\n");
+				printf("%f\n", playerPos1.posX);
+			}
 		}
 	}
 	meter++;
@@ -631,17 +651,14 @@ void OverGame(SOCKET sock, PLAYER& player, PLAYER& enemy)
 	SCWinnerPacket Winner;
 	Winner.type = SCWINNERPACKET;
 	Winner.winner = !isDead(player);
-	//if (!Winner.winner) std::cout << "loser" << std::endl;
+	std::cout << "winner" << std::endl;
 	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+
 	if (sock == playersINFO[0].sock) {
 		playersINFO[0].winner = true;
 		Winner.winner = !isDead(enemy);
 		send(playersINFO[1].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
-		if (!isDead(player)) {
-			player1.Pos.posX = 99.0f;
-			player1.Pos.posY = 99.0f;
-			player1.Pos.posZ = 99.0f;
-		}
+		player0.exist = false;
 		player1.collideCnt = 0;
 		player0.collideCnt = 0;
 	}
@@ -649,11 +666,7 @@ void OverGame(SOCKET sock, PLAYER& player, PLAYER& enemy)
 		playersINFO[1].winner = true;
 		Winner.winner = !isDead(enemy);
 		send(playersINFO[0].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
-		if (!isDead(player)) {
-			player0.Pos.posX = 99.0f;
-			player0.Pos.posY = 99.0f;
-			player0.Pos.posZ = 99.0f;
-		}
+		player1.exist = false;
 		player1.collideCnt = 0;
 		player0.collideCnt = 0;
 	}
@@ -662,6 +675,10 @@ void OverGame(SOCKET sock, PLAYER& player, PLAYER& enemy)
 void sendObstaclePacket(SOCKET sock)
 {
 	Obs.type = SCOBSTACLEPACKET;
+	if (numOfClient == 2) {
+		Obs.isMulti = true;
+	}
+	else Obs.isMulti = false;
 
 	int retval = send(sock, (char*)&Obs, sizeof(SCObstaclePacket), 0); // obstacle패킷 send
 	if (retval == SOCKET_ERROR) {
@@ -707,12 +724,16 @@ void sendEnemyPacket(SOCKET sock, PLAYER player)
 	}
 }
 
-
-void reStart()
+void reStart(SOCKET sock)
 {
-	//game restart
-	//Sleep(5000);
-	initGamePlayer();
+	//initGamePlayer();
 	Obstacles = save.ObstaclesSave;
-	player0 = save.playerSave;	
+	meter = save.saveMeter;
+	if (playersINFO[0].sock == sock) {
+		player0 = save.playerSave;
+	}
+	else if (playersINFO[1].sock == sock) {
+		player1 = save.playerSave;
+	}
+	
 }
