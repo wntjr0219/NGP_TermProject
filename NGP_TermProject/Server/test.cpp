@@ -374,7 +374,7 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 		case CSRESUMEPACKET:
 			CSResumePacket Resume;
 			recv(sock, (char*)&Resume, sizeof(CSResumePacket), 0);
-			printf("restart");
+			printf("restart\n");
 			restart = Resume.start;
 			//if(Resume.start) reStart();
 			break;
@@ -600,16 +600,20 @@ void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 
 void OverGame(SOCKET sock, PLAYER player, PLAYER enemy)
 {
-	if (sock == playersINFO[0].sock) {
 		SCWinnerPacket Winner;
 		Winner.type = SCWINNERPACKET;
 		Winner.winner = !isDead(player);
 		//if (!Winner.winner) std::cout << "loser" << std::endl;
 		send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
 		player.collideCnt = 0;
-
+	if (sock == playersINFO[0].sock) {
 		Winner.winner = !isDead(enemy);
 		send(playersINFO[1].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+		enemy.collideCnt = 0;
+	}
+	else {
+		Winner.winner = !isDead(enemy);
+		send(playersINFO[0].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
 		enemy.collideCnt = 0;
 	}
 
