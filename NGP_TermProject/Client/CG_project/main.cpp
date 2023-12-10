@@ -14,6 +14,21 @@ const char* SERVERIP = "127.0.0.1";
 int SERVERPORT = 4500;
 
 SOCKET wSock;
+void bufferclear() {
+
+	char tmp_char;
+
+	u_long on = 1;
+	ioctlsocket(wSock, FIONBIO, &on);
+
+	for (int i = 0; i < on; ++i) {
+		recv(wSock, &tmp_char, sizeof(char), 0);
+	}
+	on = 0;
+	ioctlsocket(wSock, FIONBIO, &on);
+
+	return;
+}
 
 void ConnectServer() {
 	WSADATA wsa;
@@ -105,7 +120,7 @@ void ReceiveProcess() {
 	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
-	
+	std::cout << type << std::endl;
 	if (ret > 0) {
 		switch (type)
 		{
@@ -122,6 +137,7 @@ void ReceiveProcess() {
 		case SCWINNERPACKET:
 			SCWinnerPacket winner;
 			recv(wSock, (char*)&winner, sizeof(SCWinnerPacket), MSG_WAITALL);
+			printf("Winner\n");
 			if (winner.winner) isWin = true;
 			else death = true;
 			break;
@@ -336,6 +352,7 @@ void game_over_timer(int value)
 	z_rotate += 5.0;
 	timer += 1;
 	if (timer > 100) {
+		printf("EXit\n");
 		CSExitPacket Exit;
 		Exit.type = CSEXITPACKET;
 		Exit.exit = true;
@@ -926,6 +943,7 @@ void render(int value)
 		reStart.type = CSRESTARTPACKET;
 		reStart.start = true;
 		send(wSock, (char*)&reStart, sizeof(CSReStartPacket), 0);
+		bufferclear();
 		isWin = false;
 	}
 
