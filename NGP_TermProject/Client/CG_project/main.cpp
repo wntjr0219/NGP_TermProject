@@ -97,7 +97,7 @@ void showRankings(char* packet) {
 	memcpy(&rankings, packet, sizeof(SCRankingPacket));
 
 	for (int i = 0; i < RANKERS; ++i) {
-		printf("%d  - %s\n", i, rankings.rankings[i]);
+		printf("%d  - %s  meter : %d\n", i, rankings.rankings[i].name, rankings.rankings[i].meter);
 	}
 }
 void ReceiveProcess() {
@@ -918,10 +918,12 @@ void render(int value)
 		// 클라에서 자체적으로 몇 초 pause 후, pause가 끝났다고 서버에 send
 		// 서버가 send를 받으면, 저장했던 정보를 다시 보내줄 것임.
 		printf("당신이 이겼습니다!\n");
-		for (int i = 5; i >= 1; --i) {
+		/*for (int i = 5; i >= 1; --i) {
 			printf("%d초 후 시작\n", i);
 			Sleep(1000);
-		}
+		}*/
+		
+
 		CSReStartPacket reStart;
 		reStart.type = CSRESTARTPACKET;
 		reStart.start = true;
@@ -938,6 +940,13 @@ void render(int value)
 		glutTimerFunc(30, render, 1);
 	}
 	else {
+		//--------------1인 플레이시 -----------------------
+		CSInitialPacket Initial;
+		Initial.type = CSINITIALPACKET;
+		printf("랭킹에 등록할 이름 입력\n");
+		std::cin >> Initial.rank.name;
+		send(wSock, (char*)&Initial, sizeof(CSInitialPacket), 0);
+		//---------------------------------------------------
 		glutTimerFunc(40, game_over_timer, 1);
 	}
 }

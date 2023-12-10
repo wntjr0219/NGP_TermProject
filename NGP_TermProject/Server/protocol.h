@@ -51,8 +51,7 @@ struct CSKeyPacket {
 
 struct CSInitialPacket {
     BYTE type;
-    int meter;
-    char nameInitial[STRLEN];
+    RankedInfo rank;
 };
 
 struct CSResumePacket {
