@@ -14,21 +14,6 @@ const char* SERVERIP = "127.0.0.1";
 int SERVERPORT = 4500;
 
 SOCKET wSock;
-void bufferclear() {
-
-	char tmp_char;
-
-	u_long on = 1;
-	ioctlsocket(wSock, FIONBIO, &on);
-
-	for (int i = 0; i < on; ++i) {
-		recv(wSock, &tmp_char, sizeof(char), 0);
-	}
-	on = 0;
-	ioctlsocket(wSock, FIONBIO, &on);
-
-	return;
-}
 
 void ConnectServer() {
 	WSADATA wsa;
@@ -120,7 +105,7 @@ void ReceiveProcess() {
 	int ret = recv(wSock, (char*)&type, sizeof(BYTE), MSG_PEEK);
 	//printf("%d\n", WSAGetLastError());
 	if (ret == SOCKET_ERROR) { exit(-1); }
-	std::cout << type << std::endl;
+	//std::cout << type << std::endl;
 	if (ret > 0) {
 		switch (type)
 		{
@@ -138,8 +123,9 @@ void ReceiveProcess() {
 			SCWinnerPacket winner;
 			recv(wSock, (char*)&winner, sizeof(SCWinnerPacket), MSG_WAITALL);
 			printf("Winner\n");
-			if (winner.winner) isWin = true;
+			if (winner.winner) isWin = true; 
 			else death = true;
+
 			break;
 		case SCOBSTACLEPACKET:
 			SCObstaclePacket obastaclesmove;
@@ -153,7 +139,7 @@ void ReceiveProcess() {
 			break;
 		default:
 			std::cout << "invalid Packet" << std::endl;
-			exit(-1);
+			//exit(-1);
 			break;
 		}
 	}
@@ -937,13 +923,11 @@ void render(int value)
 		printf("당신이 이겼습니다!\n");
 		for (int i = 5; i >= 1; --i) {
 			printf("%d초 후 시작\n", i);
-			Sleep(1000);
 		}
 		CSReStartPacket reStart;
 		reStart.type = CSRESTARTPACKET;
 		reStart.start = true;
 		send(wSock, (char*)&reStart, sizeof(CSReStartPacket), 0);
-		bufferclear();
 		isWin = false;
 	}
 
