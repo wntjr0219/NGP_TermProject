@@ -46,7 +46,7 @@ void initObstacle();
 void initGamePlayer();
 void saveGameSnapshot();
 bool isDead(PLAYER player);
-void OverGame(SOCKET sock, PLAYER player);
+void OverGame(SOCKET sock, PLAYER player, PLAYER enemy);
 void RecvProcess(SOCKET sock, PLAYER player);
 void setRankedInfo(SOCKET sock);
 void moveCharacter(int keytype, PLAYER player);
@@ -120,7 +120,7 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	SOCKET sock = (SOCKET)arg;
 
 	PLAYER player;
-	PLAYER Enemy;
+	PLAYER enemy;
 
 	u_long mode = 1;
 	if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR) {
@@ -129,11 +129,11 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 	while (1) {
 		if (playersINFO[0].sock == sock) {	// 첫 번째로 들어온 유저인 경우의 PlayerThread
 			player = player0;
-			Enemy = player1;
+			enemy = player1;
 		}
 		else {	// 두 번째 들어온 유저인 경우의 PlayerThread
 			player = player1;
-			Enemy = player0;
+			enemy = player0;
 		}
 
 		retval = WaitForSingleObject(moveEvent, INFINITE);
@@ -143,10 +143,10 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 		RecvProcess(sock, player);
 
 		sendCharacterPacket(sock, player);
-		sendEnemyPacket(sock, Enemy);
+		sendEnemyPacket(sock, enemy);
 		
-		if (isDead(player) || isDead(Enemy)) {
-			OverGame(sock, player);
+		if (isDead(player) || isDead(enemy)) {
+			OverGame(sock, player, enemy);
 		}
 
 		if (threadExit) {
@@ -598,13 +598,21 @@ void cube_move_timer(int value, POSXYZ playerPos0, POSXYZ playerPos1)
 	meter++;
 }
 
-void OverGame(SOCKET sock, PLAYER player)
+void OverGame(SOCKET sock, PLAYER player, PLAYER enemy)
 {
-	SCWinnerPacket Winner;
-	Winner.type = SCWINNERPACKET;
-	Winner.winner = !isDead(player);
-	//if (!Winner.winner) std::cout << "loser" << std::endl;
-	send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+	if (sock == playersINFO[0].sock) {
+		SCWinnerPacket Winner;
+		Winner.type = SCWINNERPACKET;
+		Winner.winner = !isDead(player);
+		//if (!Winner.winner) std::cout << "loser" << std::endl;
+		send(sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+		player.collideCnt = 0;
+
+		Winner.winner = !isDead(enemy);
+		send(playersINFO[1].sock, (char*)&Winner, sizeof(SCWinnerPacket), 0);
+		enemy.collideCnt = 0;
+	}
+
 }
 
 void sendObstaclePacket(SOCKET sock)
