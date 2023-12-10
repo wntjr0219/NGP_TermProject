@@ -36,11 +36,17 @@ struct savingIP {
 	SOCKET sock;
 	char ip[INET_ADDRSTRLEN];
 	bool winner = false;
+
+	void init() {
+		sock = NULL;
+		ip[0] = '\0';
+		winner = false;
+	}
 };
 savingIP playersINFO[2];
 //-------------------------함수선언
-void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter);
-void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter);
+void writeRankInfoFile(const char* filename, RankedInfo* rankInfo);
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo);
 void initPlayer();
 void initObstacle();
 void initGamePlayer();
@@ -58,6 +64,7 @@ void reStart();
 int numOfClient = 0;
 bool restart = false;
 bool threadExit = false;
+bool clearThread[2] = { false, false };
 HANDLE moveEvent;
 HANDLE playerEvent;
 const char* filename;
@@ -151,6 +158,8 @@ DWORD WINAPI PlayerThread(LPVOID arg) {
 
 		if (threadExit) {
 			threadExit = false;
+			if (player.id == 0) clearThread[0] = true;
+			else clearThread[1] = true;
 			closesocket(sock);
 			break;
 		}
@@ -233,6 +242,13 @@ int main(int argc, char** argv) {
 		else { // 데이터 옮기고 ip위치 0으로 재조정 : 대전게임이 끝났을때의 경우
 			if(playersINFO[0].winner == true) {}
 			else {}
+		}
+
+		if (clearThread[0]) {
+			playersINFO[0].init();
+		}
+		else if (clearThread[1]) {
+			playersINFO[1].init();
 		}
 		
 
@@ -338,8 +354,7 @@ void setRankedInfo(SOCKET sock)
 	//place aggregation
 	filename = "rankingFile.bin";
 	RankedInfo* rankInfo = new RankedInfo[RANKERS];
-	int* meters = new int[RANKERS];
-	readRankInfoFile(filename, rankInfo, meters);
+	readRankInfoFile(filename, rankInfo);
 
 	rankingPacket.type = SCRANKINGPACKET;
 	for (int i = 0; i < RANKERS; ++i) {
@@ -355,6 +370,9 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 
 	BYTE type = 0;
 	int ret = recv(sock, (char*)&type, sizeof(BYTE), MSG_PEEK);
+	if (WSAGetLastError() == WSAECONNRESET) {
+		threadExit = true;
+	}
 
 	if (ret > 0) {
 		switch (type)
@@ -362,7 +380,7 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 		case CSINITIALPACKET:
 			CSInitialPacket Initial;
 			recv(sock, (char*)&Initial, sizeof(CSInitialPacket), 0);
-			writeRankInfoFile("rankingFile.bin", (RankedInfo*)Initial.nameInitial, Initial.meter);
+			writeRankInfoFile("rankingFile.bin", &Initial.rank);
 			setRankedInfo(sock);
 			break;
 		case CSKEYPACKET:
@@ -390,21 +408,21 @@ void RecvProcess(SOCKET sock, PLAYER player) {
 
 }
 
-void writeRankInfoFile(const char* filename, const RankedInfo* rankInfo, int meter)
+void writeRankInfoFile(const char* filename, RankedInfo* rankInfo)
 {
-	//meter write 추가
+	rankInfo->meter = meter;
+	//printf("이니셜 : %s , meter: %d\n", rankInfo->name, rankInfo->meter);
 	std::ofstream file(filename, std::ios::binary | std::ios::app);
 	if (!file.is_open()) {
 		std::cerr << "file write open error" << std::endl;
 		return;
 	}
-	file.write(reinterpret_cast<const char*>(&rankInfo), sizeof(RankedInfo));
+	file.write(reinterpret_cast<const char*>(rankInfo), sizeof(RankedInfo));
 	file.close();
 }
 
-void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter)
+void readRankInfoFile(const char* filename, RankedInfo*& rankInfo)
 {
-	//meter read 처리 추가
 	std::ifstream file(filename, std::ios::binary);
 	if (!file.is_open()) {
 		std::cerr << "file read open error" << std::endl;
@@ -423,11 +441,12 @@ void readRankInfoFile(const char* filename, RankedInfo*& rankInfo, int*& meter)
 		});
 
 	int numCopyElements = std::min(RANKERS, static_cast<int>(allRankings.size()));
-
 	for (int i = 0; i < numCopyElements; ++i) {
 		rankInfo[i] = allRankings[i];
+		printf("이니셜 : %s , meter: %d\n", rankInfo[i].name, rankInfo[i].meter);
 	}
-
+	
+	
 	file.close();
 }
 
